@@ -340,6 +340,17 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ PASSED - Settings page testing completed successfully. All controls work perfectly: Private Mode toggle (initially ON, toggleable), Theme selector (successfully set to Dark), Units selector (successfully set to Miles), Leaderboard checkbox is properly toggleable (tested ON→OFF→ON transitions), Notifications checkbox (enabled successfully). Save Settings button works correctly and all settings persist after page reload - verified Theme=Dark, Units=Miles, Privacy=ON, Notifications=ON all maintained after refresh. All API requests use correct backend URL (https://govv-pwa.preview.emergentagent.com/api/user/settings) with proper /api prefix. No console errors detected. Settings functionality is fully working and production-ready."
+  - task: "Theme preference (live apply + persistence)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Comprehensive theme preference integration testing completed successfully. All functionality working correctly: 1) Theme selector in /settings properly toggles between System/Dark/Light options, 2) document.documentElement.classList correctly adds/removes 'dark' class (true for dark theme, false for light theme), 3) meta[name=theme-color] updates correctly (#0b1020 for dark, #ffffff for light), 4) System theme follows OS preference accurately, 5) Theme preferences persist correctly after page refresh - ThemeProvider fetches from backend on load and applies saved theme, 6) Save Settings API call works properly (/api/user/settings), 7) PWA Service Worker compatibility maintained - no conflicts or console errors during theme changes, 8) No console errors or warnings detected throughout testing. Theme integration is fully functional and production-ready."
 metadata:
   created_by: "main_agent"
   version: "1.0"
