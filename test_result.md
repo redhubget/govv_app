@@ -347,9 +347,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Profile page (edit name/email/avatar)"
-    - "Settings page (privacy, theme, units, leaderboard, notifications)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
