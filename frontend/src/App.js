@@ -376,6 +376,12 @@ const Track = () => {
               <motion.div layout>
                 <div className="text-xs text-[#8b9db2]">Duration</div>
                 <div className="text-3xl font-semibold">{Math.floor(durationSec/60)}m {durationSec%60}s</div>
+            <div className="mt-4 flex gap-3">
+              {!isTracking && <Button onClick={onStart}>Start</Button>}
+              {isTracking && <Button onClick={onPause}>{isPaused ? "Resume" : "Pause"}</Button>}
+              {isTracking && <Button variant="ghost" onClick={onStop}>Stop & Save</Button>}
+            </div>
+
               </motion.div>
             </motion.div>
 
