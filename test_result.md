@@ -402,7 +402,11 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Hamburger menu (mobile+desktop)"
+    - "Track page Leaflet polyline"
+    - "Profile linked bikes + avatar"
+    - "Theme switching govv"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
