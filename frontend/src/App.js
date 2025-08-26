@@ -688,6 +688,8 @@ const Settings = () => {
                 </select>
               </div>
             </div>
+  const themeCtx = React.useContext(ThemeContext);
+
           </Card>
           <Card title="Social">
             <div className="flex items-center justify-between">
