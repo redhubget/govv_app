@@ -463,6 +463,18 @@ def main():
     # Test 5: Contact endpoint
     contact_ok = test_contact_endpoint()
     
+    # Test 6: Get user profile
+    profile_get_ok = test_get_user_profile()
+    
+    # Test 7: Update user profile
+    profile_update_ok = test_update_user_profile()
+    
+    # Test 8: Get user settings
+    settings_get_ok = test_get_user_settings()
+    
+    # Test 9: Update user settings
+    settings_update_ok = test_update_user_settings()
+    
     # Summary
     print("=" * 60)
     print("TEST SUMMARY")
