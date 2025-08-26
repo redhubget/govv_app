@@ -1,0 +1,19 @@
+{
+  "name": "Go VV",
+  "short_name": "GoVV",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "description": "Go VV – Track your e-bike rides, visualize telemetry, and earn points.",
+  "categories": ["health", "fitness", "navigation", "utilities"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
