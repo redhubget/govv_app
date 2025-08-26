@@ -364,6 +364,21 @@ const Track = () => {
           <Card title="Achievements">
             <div className="flex gap-2">
               <span className="px-2 py-1 bg-[#0e1116] border border-[#1b2430] rounded">Rookie Rider</span>
+            <motion.div layout className="mt-4 grid grid-cols-3 gap-4">
+              <motion.div layout>
+                <div className="text-xs text-[#8b9db2]">Distance</div>
+                <div className="text-3xl font-semibold">{distance.toFixed(2)} km</div>
+              </motion.div>
+              <motion.div layout>
+                <div className="text-xs text-[#8b9db2]">Avg Speed</div>
+                <div className="text-3xl font-semibold">{avgSpeed.toFixed(1)} km/h</div>
+              </motion.div>
+              <motion.div layout>
+                <div className="text-xs text-[#8b9db2]">Duration</div>
+                <div className="text-3xl font-semibold">{Math.floor(durationSec/60)}m {durationSec%60}s</div>
+              </motion.div>
+            </motion.div>
+
               <span className="px-2 py-1 bg-[#0e1116] border border-[#1b2430] rounded">5 km</span>
             </div>
           </Card>
