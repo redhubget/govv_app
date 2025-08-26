@@ -522,19 +522,20 @@ const ActivitiesPreview = () => {
 };
 
 function App() {
+  const location = useLocation();
   return (
     <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/track" element={<Track />} />
-          <Route path="/activities" element={<Activities />} />
-          <Route path="/activities/:id" element={<ActivityDetail />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/settings" element={<Settings />} />
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<FadePage><Home /></FadePage>} />
+          <Route path="/dashboard" element={<FadePage><Dashboard /></FadePage>} />
+          <Route path="/track" element={<FadePage><Track /></FadePage>} />
+          <Route path="/activities" element={<FadePage><Activities /></FadePage>} />
+          <Route path="/activities/:id" element={<FadePage><ActivityDetail /></FadePage>} />
+          <Route path="/profile" element={<FadePage><Profile /></FadePage>} />
+          <Route path="/settings" element={<FadePage><Settings /></FadePage>} />
         </Routes>
-      </BrowserRouter>
+      </AnimatePresence>
     </div>
   );
 }
