@@ -3,6 +3,9 @@ import "./App.css";
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
+import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -317,47 +320,36 @@ const Dashboard = () => {
 };
 
 // ---------------------------
-// Google Maps integration (optional)
+// Leaflet Map for Tracking
 // ---------------------------
-const GOOGLE_MAPS_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY; // TODO: Set this in frontend/.env if you have a Maps API key
-
-function useGoogleMaps(key) {
-  const [ready, setReady] = useState(false);
+const FitPath = ({ path }) => {
+  const map = useMap();
   useEffect(() => {
-    if (!key) return;
-    if (window.google && window.google.maps) { setReady(true); return; }
-    const scriptId = 'gmaps-js';
-    if (document.getElementById(scriptId)) return;
-    const s = document.createElement('script');
-    s.id = scriptId; s.async = true; s.defer = true;
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}`; // TODO: enable Maps JavaScript API in Google Cloud
-    s.onload = () => setReady(true);
-    s.onerror = () => console.warn('Google Maps failed to load. Using fallback map.');
-    document.head.appendChild(s);
-  }, [key]);
-  return ready;
-}
-
-const GoogleMapView = ({ path }) => {
-  const mapRef = useRef(null);
-  const mapObj = useRef(null);
-  const polyRef = useRef(null);
-
-  useEffect(() => {
-    if (!mapRef.current || !(window.google && window.google.maps)) return;
-    mapObj.current = new window.google.maps.Map(mapRef.current, { zoom: 15, center: { lat: path?.[0]?.lat || 37.7749, lng: path?.[0]?.lng || -122.4194 }, disableDefaultUI: true });
-    polyRef.current = new window.google.maps.Polyline({ path: path.map(p => ({ lat: p.lat, lng: p.lng })), geodesic: true, strokeColor: '#22c55e', strokeOpacity: 1.0, strokeWeight: 3 });
-    polyRef.current.setMap(mapObj.current);
-    return () => { if (polyRef.current) polyRef.current.setMap(null); };
-  }, []);
-
-  useEffect(() => {
-    if (polyRef.current && window.google && window.google.maps) {
-      polyRef.current.setPath(path.map(p => ({ lat: p.lat, lng: p.lng })));
-    }
+    if (!path || path.length === 0) return;
+    const bounds = L.latLngBounds(path.map(p => [p.lat, p.lng]));
+    map.fitBounds(bounds, { padding: [20, 20] });
   }, [path]);
+  return null;
+};
 
-  return <div ref={mapRef} className="w-full h-[360px] rounded-xl border border-[#1b2430]" />;
+const LeafletMapView = ({ path, base }) => {
+  const center = path.length ? [path[0].lat, path[0].lng] : [base.lat, base.lng];
+  return (
+    <MapContainer center={center} zoom={15} className="w-full h-[360px] rounded-xl border border-[#1b2430]" scrollWheelZoom={true} zoomControl={false}>
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {path.length > 0 && (
+        <>
+          <Polyline positions={path.map(p => [p.lat, p.lng])} color="#22c55e" weight={3} />
+          <Marker position={[path[0].lat, path[0].lng]} />
+          <Marker position={[path[path.length-1].lat, path[path.length-1].lng]} />
+          <FitPath path={path} />
+        </>
+      )}
+    </MapContainer>
+  );
 };
 
 // ---------------------------
@@ -380,7 +372,6 @@ const Track = () => {
   const [distance, setDistance] = useState(0);
   const [avgSpeed, setAvgSpeed] = useState(0);
   const [startTime, setStartTime] = useState(null);
-  const mapsReady = useGoogleMaps(GOOGLE_MAPS_KEY);
   const timerRef = useRef(null);
   const navigate = useNavigate();
 
@@ -418,34 +409,12 @@ const Track = () => {
     } catch (e) { console.error(e); }
   };
 
-  // fallback SVG Map
-  const MapFallback = () => {
-    const width = 600; const height = 360; const pad = 20;
-    const coords = path.length ? path : [{ lat: base.lat, lng: base.lng }];
-    const lats = coords.map(p => p.lat); const lngs = coords.map(p => p.lng);
-    const minLat = Math.min(...lats); const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs); const maxLng = Math.max(...lngs);
-    const scaleX = (lng) => pad + (maxLng === minLng ? 0.5 : (lng - minLng)/(maxLng - minLng)) * (width - 2*pad);
-    const scaleY = (lat) => pad + (1 - (maxLat === minLat ? 0.5 : (lat - minLat)/(maxLat - minLat))) * (height - 2*pad);
-    const d = coords.map((p, i) => `${i === 0 ? "M" : "L"}${scaleX(p.lng)},${scaleY(p.lat)}`).join(" ");
-    return (
-      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="bg-[#0b1020] rounded-xl border border-[#1b2430]">
-        {[...Array(10)].map((_,i) => (<line key={`v${i}`} x1={(i+1)*(width/12)} y1={0} x2={(i+1)*(width/12)} y2={height} stroke="#111827"/>))}
-        {[...Array(6)].map((_,i) => (<line key={`h${i}`} y1={(i+1)*(height/8)} x1={0} y2={(i+1)*(height/8)} x2={width} stroke="#111827"/>))}
-        <path d={d} stroke="#22c55e" strokeWidth="3" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
-      </svg>
-    );
-  };
-
   return (
     <Shell>
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <Card title={isTracking ? (isPaused ? "Paused" : "Live Ride") : "Ready to Ride"}>
-            {GOOGLE_MAPS_KEY && mapsReady ? <GoogleMapView path={path} /> : <MapFallback />}
-            {!GOOGLE_MAPS_KEY && (
-              <div className="text-xs text-[#8b9db2] mt-2">TODO: Provide REACT_APP_GOOGLE_MAPS_API_KEY in frontend/.env to enable Google Maps.</div>
-            )}
+            <LeafletMapView path={path} base={base} />
             <motion.div layout className="mt-4 grid grid-cols-3 gap-4">
               <motion.div layout>
                 <div className="text-xs text-[#8b9db2]">Distance</div>
@@ -487,7 +456,7 @@ const Track = () => {
 };
 
 // ---------------------------
-// Activities List & Detail
+// Activities List & Detail (unchanged)
 // ---------------------------
 const Activities = () => {
   const [loading, setLoading] = useState(true);
@@ -598,7 +567,7 @@ const ActivityDetail = () => {
 };
 
 // ---------------------------
-// Profile (completed earlier) - add gamification visuals
+// Profile (with gamification)
 // ---------------------------
 const api = axios.create({ baseURL: `${API}` });
 
@@ -674,7 +643,7 @@ const Profile = () => {
 };
 
 // ---------------------------
-// Settings (extended with theme govv option)
+// Settings (with theme govv option)
 // ---------------------------
 const Settings = () => {
   const [loading, setLoading] = useState(true);
@@ -771,7 +740,7 @@ const Signup = () => {
   };
 
   const verify = () => {
-    // Placeholder: any 6-digit code accepted
+    // Placeholder: any 4+ digit code accepted
     if (otp.length >= 4) {
       auth.login();
       navigate("/dashboard");
@@ -808,7 +777,7 @@ const Signup = () => {
 };
 
 // ---------------------------
-// Home with Cycle Info
+// Home with Cycle Info and Shop link
 // ---------------------------
 const CycleCard = () => {
   const [battery, setBattery] = useState(76);

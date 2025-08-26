@@ -46,12 +46,10 @@ app.add_middleware(
 # ------------------------------------------------------------
 
 def prepare_for_mongo(data: Dict[str, Any]) -> Dict[str, Any]:
-    # Convert date/time objects to strings for Mongo storage
     if isinstance(data.get('date'), date):
         data['date'] = data['date'].isoformat()
     if isinstance(data.get('time'), time):
         data['time'] = data['time'].strftime('%H:%M:%S')
-    # Datetime to ISO
     if isinstance(data.get('start_time'), datetime):
         data['start_time'] = data['start_time'].astimezone(timezone.utc).isoformat()
     if isinstance(data.get('created_at'), datetime):
@@ -62,9 +60,7 @@ def prepare_for_mongo(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def parse_from_mongo(item: Dict[str, Any]) -> Dict[str, Any]:
-    # Remove Mongo's default _id
     item.pop('_id', None)
-    # Parse datetimes from ISO (best-effort)
     for key in ['start_time', 'created_at', 'updated_at']:
         val = item.get(key)
         if isinstance(val, str):
@@ -76,13 +72,11 @@ def parse_from_mongo(item: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def compute_points(distance_km: float, avg_kmh: float, duration_sec: int) -> int:
-    # Simple scoring formula
     base = int(distance_km * 10)
     speed_bonus = int(avg_kmh)
-    dur_bonus = int(duration_sec / 120)  # 1 point per 2 minutes
+    dur_bonus = int(duration_sec / 120)
     points = max(0, base + speed_bonus + dur_bonus)
     return points
-
 
 # ------------------------------------------------------------
 # Models
@@ -90,8 +84,7 @@ def compute_points(distance_km: float, avg_kmh: float, duration_sec: int) -> int
 class TelemetryPoint(BaseModel):
     lat: float
     lng: float
-    t: float  # epoch seconds
-
+    t: float
 
 class ActivityCreate(BaseModel):
     name: Optional[str] = None
@@ -102,7 +95,6 @@ class ActivityCreate(BaseModel):
     path: List[TelemetryPoint] = Field(default_factory=list)
     notes: Optional[str] = None
     private: bool = False
-
 
 class Activity(BaseModel):
     id: str
@@ -118,50 +110,43 @@ class Activity(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-
 class PaginatedActivities(BaseModel):
     items: List[Activity]
     total: int
     limit: int
     offset: int
 
-
 class APIResponse(BaseModel):
     success: bool
     data: Optional[Dict[str, Any]] = None
     message: str = ""
-
 
 class ContactMessage(BaseModel):
     email: str
     subject: str
     message: str
 
-
 # ---- User Profile / Settings ----
 class UserPreferences(BaseModel):
-    privacy: bool = False  # if True: do not save GPS history
+    privacy: bool = False
     leaderboard: bool = True
-    theme: str = "system"  # system | light | dark
-    units: str = "km"  # km | mi
+    theme: str = "system"
+    units: str = "km"
     notifications: bool = False
-
 
 class UserProfile(BaseModel):
     id: str
     name: str = "Rider"
     email: str = ""
-    avatar_b64: Optional[str] = None  # full data URL string OK
+    avatar_b64: Optional[str] = None
     preferences: UserPreferences = Field(default_factory=UserPreferences)
     created_at: datetime
     updated_at: datetime
-
 
 class UserProfileUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     avatar_b64: Optional[str] = None
-
 
 class UserSettingsUpdate(BaseModel):
     privacy: Optional[bool] = None
@@ -170,9 +155,7 @@ class UserSettingsUpdate(BaseModel):
     units: Optional[str] = None
     notifications: Optional[bool] = None
 
-
-DEFAULT_USER_ID = "9f1b4a5e-0c1f-4f2a-b4a9-bdc56a17c0aa"  # constant UUID for default user
-
+DEFAULT_USER_ID = "9f1b4a5e-0c1f-4f2a-b4a9-bdc56a17c0aa"
 
 async def get_or_create_default_user() -> Dict[str, Any]:
     doc = await db.users.find_one({"id": DEFAULT_USER_ID})
@@ -191,14 +174,12 @@ async def get_or_create_default_user() -> Dict[str, Any]:
     await db.users.insert_one(prepare_for_mongo(user.copy()))
     return user
 
-
 # ------------------------------------------------------------
 # Routes
 # ------------------------------------------------------------
 @api.get("/health", response_model=APIResponse)
 async def health() -> APIResponse:
     return APIResponse(success=True, data={"status": "ok"}, message="Service healthy")
-
 
 @api.post("/activities", response_model=APIResponse)
 async def create_activity(payload: ActivityCreate) -> APIResponse:
@@ -225,7 +206,6 @@ async def create_activity(payload: ActivityCreate) -> APIResponse:
         logging.exception("create_activity failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @api.get("/activities", response_model=APIResponse)
 async def list_activities(limit: int = 20, offset: int = 0) -> APIResponse:
     try:
@@ -246,7 +226,6 @@ async def list_activities(limit: int = 20, offset: int = 0) -> APIResponse:
         logging.exception("list_activities failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @api.get("/activities/{activity_id}", response_model=APIResponse)
 async def get_activity(activity_id: str) -> APIResponse:
     try:
@@ -264,18 +243,15 @@ async def get_activity(activity_id: str) -> APIResponse:
         logging.exception("get_activity failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # ---- Contact Email (Gmail SMTP placeholder) ----
 
 def _send_gmail_email(to_email: str, subject: str, body: str) -> bool:
     """
-    Attempts to send email using Gmail SMTP. Requires EMAIL_USER and EMAIL_PASS in backend/.env
-    TODO: Ask user to create Gmail App Password and set EMAIL_USER, EMAIL_PASS in backend/.env then restart backend.
+    Attempts to send email using Gmail SMTP. Requires EMAIL_USER and EMAIL_PASS in backend/.env.
+    For quick MVP, falls back to static demo credentials if env missing. TODO: Replace with real credentials.
     """
-    email_user = os.environ.get("EMAIL_USER")
-    email_pass = os.environ.get("EMAIL_PASS")
-    if not email_user or not email_pass:
-        return False
+    email_user = os.environ.get("EMAIL_USER") or "demo.sender@example.com"  # TODO: replace with real mailbox
+    email_pass = os.environ.get("EMAIL_PASS") or "demo-app-password"       # TODO: replace with secure app password
     try:
         msg = MIMEText(body)
         msg['Subject'] = subject
@@ -286,9 +262,8 @@ def _send_gmail_email(to_email: str, subject: str, body: str) -> bool:
             server.sendmail(email_user, [to_email], msg.as_string())
         return True
     except Exception:
-        logging.exception("SMTP send failed")
+        logging.exception("SMTP send failed (using provided/static credentials)")
         return False
-
 
 @api.post("/contact", response_model=APIResponse)
 async def contact_us(payload: ContactMessage) -> APIResponse:
@@ -302,13 +277,11 @@ async def contact_us(payload: ContactMessage) -> APIResponse:
     else:
         return APIResponse(success=False, data=None, message="Email not sent. TODO: Configure EMAIL_USER and EMAIL_PASS (Gmail App Password) in backend/.env and restart backend.")
 
-
 # ---- User Profile & Settings Endpoints ----
 @api.get("/user/profile", response_model=APIResponse)
 async def get_profile() -> APIResponse:
     try:
         doc = await get_or_create_default_user()
-        # ensure json-safe dates
         out = parse_from_mongo(doc)
         for k in ["created_at", "updated_at"]:
             v = out.get(k)
@@ -318,7 +291,6 @@ async def get_profile() -> APIResponse:
     except Exception as e:
         logging.exception("get_profile failed")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @api.put("/user/profile", response_model=APIResponse)
 async def update_profile(payload: UserProfileUpdate) -> APIResponse:
@@ -330,7 +302,6 @@ async def update_profile(payload: UserProfileUpdate) -> APIResponse:
         if payload.email is not None:
             updates['email'] = payload.email
         if payload.avatar_b64 is not None:
-            # limit base64 length ~1.5MB
             if len(payload.avatar_b64) > 2_000_000:
                 raise HTTPException(status_code=400, detail="Avatar too large")
             updates['avatar_b64'] = payload.avatar_b64
@@ -338,7 +309,6 @@ async def update_profile(payload: UserProfileUpdate) -> APIResponse:
             return APIResponse(success=True, data={"profile": existing}, message="No changes")
         updates['updated_at'] = datetime.now(timezone.utc)
         await db.users.update_one({"id": DEFAULT_USER_ID}, {"$set": prepare_for_mongo(updates.copy())})
-        # return merged
         new_doc = await db.users.find_one({"id": DEFAULT_USER_ID})
         out = parse_from_mongo(new_doc)
         for k in ["created_at", "updated_at"]:
@@ -352,7 +322,6 @@ async def update_profile(payload: UserProfileUpdate) -> APIResponse:
         logging.exception("update_profile failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @api.get("/user/settings", response_model=APIResponse)
 async def get_settings() -> APIResponse:
     try:
@@ -362,7 +331,6 @@ async def get_settings() -> APIResponse:
     except Exception as e:
         logging.exception("get_settings failed")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @api.put("/user/settings", response_model=APIResponse)
 async def update_settings(payload: UserSettingsUpdate) -> APIResponse:
@@ -385,10 +353,8 @@ async def update_settings(payload: UserSettingsUpdate) -> APIResponse:
         logging.exception("update_settings failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # Register API router
 app.include_router(api)
-
 
 # Graceful shutdown
 @app.on_event("shutdown")
