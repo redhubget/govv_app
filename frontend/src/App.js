@@ -632,6 +632,7 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({ privacy: false, leaderboard: true, theme: "system", units: "km", notifications: false });
+  const themeCtx = React.useContext(ThemeContext);
 
   useEffect(() => {
     (async () => {
