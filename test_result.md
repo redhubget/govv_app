@@ -101,3 +101,115 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Build Go VV PWA scaffold with backend activities tracking and minimal frontend to create/list rides."
+backend:
+  - task: "Health endpoint /api/health"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Initial implementation of /api/health returning {success, data, message}."
+  - task: "Create Activity POST /api/activities"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Creates activity with UUID id; stores datetimes as ISO. Computes points."
+  - task: "List Activities GET /api/activities"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Paginates and returns items with JSON-safe dates."
+  - task: "Get Activity GET /api/activities/{id}"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Fetches activity by UUID id and returns JSON-safe dates."
+  - task: "Contact Email POST /api/contact (Gmail SMTP placeholder)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Returns success=false with TODO unless EMAIL_USER/EMAIL_PASS configured."
+frontend:
+  - task: "Simulated GPS tracking and save to backend"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Start/Pause/Stop with polyline SVG; saves activity to backend and navigates to detail."
+  - task: "Dashboard cards and sparkline"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Aggregates stats from activities API and renders sparkline."
+  - task: "Activities list & detail with replay"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "List latest rides and show detail with animated route replay."
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Health endpoint /api/health"
+    - "Create Activity POST /api/activities"
+    - "List Activities GET /api/activities"
+    - "Get Activity GET /api/activities/{id}"
+    - "Contact Email POST /api/contact"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Backend endpoints implemented; please run backend tests in order: health -> create activity (with sample payload) -> list -> get -> contact (expect success=false if EMAIL_USER/PASS not set). Use base path prefix /api and do not assume auth."
