@@ -916,9 +916,7 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <div className="App">
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
+            <AppRoutes />
           </div>
         </CartProvider>
       </AuthProvider>
