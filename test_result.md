@@ -106,59 +106,74 @@ user_problem_statement: "Build Go VV PWA scaffold with backend activities tracki
 backend:
   - task: "Health endpoint /api/health"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Initial implementation of /api/health returning {success, data, message}."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Health endpoint returns 200 with correct structure {success:true, data:{status:'ok'}, message:'Service healthy'}. Tested via https://govv-pwa.preview.emergentagent.com/api/health"
   - task: "Create Activity POST /api/activities"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Creates activity with UUID id; stores datetimes as ISO. Computes points."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Successfully creates activity with UUID id (1a44897d-a0dd-452f-a32d-78c230af83b8), computes points (45), stores with ISO dates. All required fields present in response."
   - task: "List Activities GET /api/activities"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Paginates and returns items with JSON-safe dates."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Returns paginated activities list with valid ISO date strings for start_time, created_at, updated_at. Found 1 activity with proper structure."
   - task: "Get Activity GET /api/activities/{id}"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Fetches activity by UUID id and returns JSON-safe dates."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Successfully retrieves activity by UUID with all expected fields (id, name, distance_km, duration_sec, avg_kmh, start_time, points_earned). ID matches request parameter."
   - task: "Contact Email POST /api/contact (Gmail SMTP placeholder)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Returns success=false with TODO unless EMAIL_USER/EMAIL_PASS configured."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Correctly returns success=false with TODO message about configuring EMAIL_USER/EMAIL_PASS when no email credentials are set. Behavior matches specification."
 frontend:
   - task: "Simulated GPS tracking and save to backend"
     implemented: true
