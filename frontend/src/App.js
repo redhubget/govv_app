@@ -1,4 +1,42 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+/* PWA Install Prompt hook & component */
+function usePwaInstall() {
+  const [deferred, setDeferred] = React.useState(null);
+  const [installed, setInstalled] = React.useState(false);
+  React.useEffect(() => {
+    const before = (e) => { e.preventDefault(); setDeferred(e); };
+    const installedH = () => setInstalled(true);
+    window.addEventListener('beforeinstallprompt', before);
+    window.addEventListener('appinstalled', installedH);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', before);
+      window.removeEventListener('appinstalled', installedH);
+    };
+  }, []);
+  const prompt = async () => {
+    if (!deferred) return false;
+    deferred.prompt();
+    const { outcome } = await deferred.userChoice;
+    setDeferred(null);
+    return outcome === 'accepted';
+  };
+  return { canInstall: !!deferred && !installed, prompt, installed };
+}
+
+const InstallPrompt = () => {
+  const { canInstall, prompt, installed } = usePwaInstall();
+  if (!canInstall || installed) return null;
+  return (
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+      <div className="flex items-center gap-3 bg-[#0e1116] border border-[#1b2430] px-4 py-2 rounded-xl shadow-lg">
+        <span className="text-sm text-[#cbd5e1]">Install Go VV for a better experience</span>
+        <button onClick={prompt} className="px-3 py-1 rounded-md bg-[#4f46e5] text-white hover:bg-[#4338ca] text-sm">Install</button>
+      </div>
+    </div>
+  );
+};
+
+
 import "./App.css";
 import { BrowserRouter, Routes, Route, Link, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
