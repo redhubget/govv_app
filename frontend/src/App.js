@@ -771,9 +771,11 @@ const AppRoutes = () => {
 
 function App() {
   return (
-    <div className="App">
-      <AppRoutes />
-    </div>
+    <ThemeProvider>
+      <div className="App">
+        <AppRoutes />
+      </div>
+    </ThemeProvider>
   );
 }
 
