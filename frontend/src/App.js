@@ -118,6 +118,13 @@ const Spark = ({ points = [], color = "#22d3ee" }) => {
   );
 };
 
+// Route transition wrapper
+const FadePage = ({ children }) => (
+  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
+    {children}
+  </motion.div>
+);
+
 const Dashboard = () => {
   const [stats, setStats] = useState({
     totalKm: 0,
