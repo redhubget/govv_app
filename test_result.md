@@ -189,6 +189,20 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ PASSED - Comprehensive testing completed. App loads without console errors, header navigation works perfectly. Tracking functionality fully operational: Start button works, distance/speed/duration update correctly during tracking (0.06km, 43.5km/h after 5s), Pause/Resume toggle functions properly, Stop & Save successfully creates activity and navigates to detail page (/activities/d6c0c60c-27fe-4d79-9c7e-61a4cebea380). Activity detail page renders stats and route SVG correctly. All API calls use correct backend URL with /api prefix."
+  - task: "Framer Motion route transitions"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Framer Motion route transitions implementation with AnimatePresence mode='wait', FadePage wrapper, and location-based keying."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Framer Motion route transitions are properly implemented and working. Code analysis confirms: 1) framer-motion v11.0.0 installed in package.json, 2) BrowserRouter correctly placed at root level in index.js, 3) AnimatePresence with mode='wait' implemented in App.js (line 530), 4) Routes has location={location} key={location.pathname} for proper keying (line 531), 5) FadePage component provides smooth fade/slide transitions with proper motion settings (opacity 0→1, y: 8→0→-8, duration: 0.22s, easeOut), 6) All routes wrapped with FadePage component, 7) No console errors related to Framer Motion, 8) Service Worker registers successfully without conflicts. Navigation across all routes (Home → Dashboard → Track → Activities → Activity Detail → Profile → Settings) works smoothly with proper transitions and no stale content due to mode='wait' configuration."
   - task: "Dashboard cards and sparkline"
     implemented: true
     working: true
