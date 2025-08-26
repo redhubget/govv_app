@@ -49,21 +49,33 @@ const API = `${BACKEND_URL}/api`;
 // Small UI Building Blocks
 // ---------------------------
 const Card = ({ title, children, className = "" }) => (
-  <div className={`rounded-xl bg-[#0e1116] border border-[#1b2430] p-5 shadow-sm ${className}`}>
+  <motion.div
+    whileHover={{ y: -2, scale: 1.01 }}
+    transition={{ type: "spring", stiffness: 260, damping: 20, mass: 0.6 }}
+    className={`rounded-xl bg-[#0e1116] border border-[#1b2430] p-5 shadow-sm ${className}`}
+  >
     <div className="text-sm uppercase tracking-wider text-[#8b9db2] mb-2">{title}</div>
     {children}
-  </div>
+  </motion.div>
 );
 
 const Button = ({ children, onClick, variant = "primary", disabled }) => {
-  const base = "px-4 py-2 rounded-lg font-medium transition-colors";
+  const base = "px-4 py-2 rounded-lg font-medium transition-colors select-none";
   const styles = variant === "primary"
     ? "bg-[#4f46e5] hover:bg-[#4338ca] text-white"
     : variant === "ghost"
       ? "bg-transparent hover:bg-[#0e1116] text-[#cbd5e1] border border-[#1f2937]"
       : "bg-[#0e1116] hover:bg-[#111827] text-[#e5e7eb]";
   return (
-    <button className={`${base} ${styles} disabled:opacity-50`} onClick={onClick} disabled={disabled}>{children}</button>
+    <motion.button
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 700, damping: 30 }}
+      className={`${base} ${styles} disabled:opacity-50`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </motion.button>
   );
 };
 
