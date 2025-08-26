@@ -9,6 +9,8 @@ from datetime import datetime, timezone, date, time
 import os
 import uuid
 import logging
+import smtplib
+from email.mime.text import MIMEText
 
 # ------------------------------------------------------------
 # Environment & DB Setup
@@ -136,6 +138,60 @@ class ContactMessage(BaseModel):
     message: str
 
 
+# ---- User Profile / Settings ----
+class UserPreferences(BaseModel):
+    privacy: bool = False  # if True: do not save GPS history
+    leaderboard: bool = True
+    theme: str = "system"  # system | light | dark
+    units: str = "km"  # km | mi
+    notifications: bool = False
+
+
+class UserProfile(BaseModel):
+    id: str
+    name: str = "Rider"
+    email: str = ""
+    avatar_b64: Optional[str] = None  # full data URL string OK
+    preferences: UserPreferences = Field(default_factory=UserPreferences)
+    created_at: datetime
+    updated_at: datetime
+
+
+class UserProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    avatar_b64: Optional[str] = None
+
+
+class UserSettingsUpdate(BaseModel):
+    privacy: Optional[bool] = None
+    leaderboard: Optional[bool] = None
+    theme: Optional[str] = None
+    units: Optional[str] = None
+    notifications: Optional[bool] = None
+
+
+DEFAULT_USER_ID = "9f1b4a5e-0c1f-4f2a-b4a9-bdc56a17c0aa"  # constant UUID for default user
+
+
+async def get_or_create_default_user() -> Dict[str, Any]:
+    doc = await db.users.find_one({"id": DEFAULT_USER_ID})
+    if doc:
+        return doc
+    now = datetime.now(timezone.utc)
+    user = {
+        "id": DEFAULT_USER_ID,
+        "name": "Rider",
+        "email": "",
+        "avatar_b64": None,
+        "preferences": UserPreferences().dict(),
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.users.insert_one(prepare_for_mongo(user.copy()))
+    return user
+
+
 # ------------------------------------------------------------
 # Routes
 # ------------------------------------------------------------
@@ -177,7 +233,6 @@ async def list_activities(limit: int = 20, offset: int = 0) -> APIResponse:
         docs = await q.to_list(length=limit)
         items = [parse_from_mongo(d) for d in docs]
         total = await db.activities.count_documents({})
-        # Convert datetime back to iso for JSON safety
         def ensure_json_safe(doc: Dict[str, Any]) -> Dict[str, Any]:
             out = doc.copy()
             for k in ["start_time", "created_at", "updated_at"]:
@@ -211,9 +266,6 @@ async def get_activity(activity_id: str) -> APIResponse:
 
 
 # ---- Contact Email (Gmail SMTP placeholder) ----
-import smtplib
-from email.mime.text import MIMEText
-
 
 def _send_gmail_email(to_email: str, subject: str, body: str) -> bool:
     """
@@ -248,8 +300,90 @@ async def contact_us(payload: ContactMessage) -> APIResponse:
     if sent:
         return APIResponse(success=True, data=None, message="Email sent")
     else:
-        # Not failing hard; guiding user to configure
         return APIResponse(success=False, data=None, message="Email not sent. TODO: Configure EMAIL_USER and EMAIL_PASS (Gmail App Password) in backend/.env and restart backend.")
+
+
+# ---- User Profile & Settings Endpoints ----
+@api.get("/user/profile", response_model=APIResponse)
+async def get_profile() -> APIResponse:
+    try:
+        doc = await get_or_create_default_user()
+        # ensure json-safe dates
+        out = parse_from_mongo(doc)
+        for k in ["created_at", "updated_at"]:
+            v = out.get(k)
+            if isinstance(v, datetime):
+                out[k] = v.isoformat()
+        return APIResponse(success=True, data={"profile": out}, message="OK")
+    except Exception as e:
+        logging.exception("get_profile failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api.put("/user/profile", response_model=APIResponse)
+async def update_profile(payload: UserProfileUpdate) -> APIResponse:
+    try:
+        existing = await get_or_create_default_user()
+        updates: Dict[str, Any] = {}
+        if payload.name is not None:
+            updates['name'] = payload.name
+        if payload.email is not None:
+            updates['email'] = payload.email
+        if payload.avatar_b64 is not None:
+            # limit base64 length ~1.5MB
+            if len(payload.avatar_b64) > 2_000_000:
+                raise HTTPException(status_code=400, detail="Avatar too large")
+            updates['avatar_b64'] = payload.avatar_b64
+        if not updates:
+            return APIResponse(success=True, data={"profile": existing}, message="No changes")
+        updates['updated_at'] = datetime.now(timezone.utc)
+        await db.users.update_one({"id": DEFAULT_USER_ID}, {"$set": prepare_for_mongo(updates.copy())})
+        # return merged
+        new_doc = await db.users.find_one({"id": DEFAULT_USER_ID})
+        out = parse_from_mongo(new_doc)
+        for k in ["created_at", "updated_at"]:
+            v = out.get(k)
+            if isinstance(v, datetime):
+                out[k] = v.isoformat()
+        return APIResponse(success=True, data={"profile": out}, message="Profile updated")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("update_profile failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api.get("/user/settings", response_model=APIResponse)
+async def get_settings() -> APIResponse:
+    try:
+        doc = await get_or_create_default_user()
+        prefs = doc.get('preferences', UserPreferences().dict())
+        return APIResponse(success=True, data={"settings": prefs}, message="OK")
+    except Exception as e:
+        logging.exception("get_settings failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api.put("/user/settings", response_model=APIResponse)
+async def update_settings(payload: UserSettingsUpdate) -> APIResponse:
+    try:
+        doc = await get_or_create_default_user()
+        prefs = doc.get('preferences', UserPreferences().dict())
+        new_prefs = {**prefs}
+        for key in ['privacy', 'leaderboard', 'theme', 'units', 'notifications']:
+            val = getattr(payload, key)
+            if val is not None:
+                new_prefs[key] = val
+        await db.users.update_one({"id": DEFAULT_USER_ID}, {
+            "$set": prepare_for_mongo({
+                "preferences": new_prefs,
+                "updated_at": datetime.now(timezone.utc)
+            })
+        })
+        return APIResponse(success=True, data={"settings": new_prefs}, message="Settings updated")
+    except Exception as e:
+        logging.exception("update_settings failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Register API router
