@@ -40,6 +40,8 @@ const Shell = ({ children }) => {
     <div className="min-h-screen text-[#e5e7eb] bg-gradient-to-b from-[#0b1020] to-[#090f1a]">
       <header className="sticky top-0 z-20 backdrop-blur border-b border-[#1b2430] bg-[#0b1020]/70">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+      <InstallPrompt />
+
           <Link to="/" className="font-bold tracking-wide text-white">Go VV</Link>
           <nav className="flex items-center gap-4 text-[#cbd5e1]">
             <Link className="hover:text-white" to="/dashboard">Dashboard</Link>
