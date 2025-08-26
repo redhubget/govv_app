@@ -215,12 +215,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Health endpoint /api/health"
-    - "Create Activity POST /api/activities"
-    - "List Activities GET /api/activities"
-    - "Get Activity GET /api/activities/{id}"
-    - "Contact Email POST /api/contact"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
