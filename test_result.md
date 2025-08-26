@@ -217,6 +217,20 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ PASSED - History page shows activity list with proper formatting (distance, date, speed, duration). New activities appear at top with correct data. Hover styles work on list items. Clicking activity items navigates to detail page successfully. Activity detail page shows animated route replay with blue SVG path, complete stats (distance, avg speed, duration, points), and notes section. Route replay animation works correctly."
+  - task: "PWA: manifest + SW + offline + install prompt"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "PWA implementation with manifest.json, service-worker.js, offline.html, and InstallPrompt component."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - PWA verification completed successfully. Service Worker registers correctly (console logs 'SW registered https://govv-pwa.preview.emergentagent.com/'), manifest.json is valid JSON with proper PWA metadata (name: Go VV, start_url: /, display: standalone), InstallPrompt component renders and responds to simulated beforeinstallprompt events, offline.html page exists and displays proper 'You're offline' message with return home link. Minor: Service worker navigation fallback serves cached React app instead of offline.html during network failures, but core PWA functionality is working correctly."
 metadata:
   created_by: "main_agent"
   version: "1.0"
