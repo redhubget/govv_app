@@ -675,7 +675,7 @@ const Settings = () => {
             <div className="grid gap-3">
               <div>
                 <label className="text-sm text-[#8b9db2]">Theme</label>
-                <select value={settings.theme} onChange={(e) => update({ theme: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-lg bg-[#0e1116] border border-[#1b2430]">
+                <select value={settings.theme} onChange={(e) => { const v = e.target.value; update({ theme: v }); themeCtx?.setTheme?.(v); }} className="mt-1 w-full px-3 py-2 rounded-lg bg-[#0e1116] border border-[#1b2430]">
                   <option value="system">System</option>
                   <option value="dark">Dark</option>
                   <option value="light">Light</option>
