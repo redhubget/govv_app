@@ -158,6 +158,87 @@ const Skeleton = ({ className = "h-4 w-full" }) => (
 );
 
 // ---------------------------
+// Hamburger Menu (mobile: slide-out, desktop: dropdown)
+// ---------------------------
+const MenuLink = ({ to, label, onClick }) => (
+  <Link to={to} onClick={onClick} className="block px-4 py-2 rounded hover:bg-[#0f1524] text-[#cbd5e1]">
+    {label}
+  </Link>
+);
+
+const HamburgerMenu = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      {/* Trigger button */}
+      <button
+        aria-label="Open menu"
+        onClick={() => setOpen(true)}
+        className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg border border-[#1b2430] hover:bg-[#0e1116]"
+      >
+        ☰
+      </button>
+      {/* Desktop collapsed menu */}
+      <div className="hidden md:block">
+        <div className="relative group">
+          <button className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-[#1b2430] hover:bg-[#0e1116]">More</button>
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            whileHover={{ opacity: 1, y: 0 }}
+            className="absolute right-0 mt-2 w-56 rounded-xl border border-[#1b2430] bg-[#0b1020] p-2 hidden group-hover:block"
+          >
+            <MenuLink to="/dashboard" label="Dashboard" />
+            <MenuLink to="/activities" label="History" />
+            <MenuLink to="/shop" label="Shop" />
+            <MenuLink to="/warranty" label="Warranty" />
+            <MenuLink to="/contact" label="Contact" />
+            <MenuLink to="/service-centers" label="Service Centers" />
+            <MenuLink to="/settings" label="Settings" />
+            <MenuLink to="/admin" label="Admin" />
+          </motion.div>
+        </div>
+      </div>
+      {/* Mobile slide-out drawer */}
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.div
+              className="fixed inset-0 bg-black/50 z-40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              className="fixed right-0 top-0 bottom-0 w-72 z-50 border-l border-[#1b2430] bg-[#0b1020] p-4"
+              initial={{ x: 320 }}
+              animate={{ x: 0 }}
+              exit={{ x: 320 }}
+              transition={{ type: 'tween', duration: 0.25 }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-semibold">Menu</div>
+                <button onClick={() => setOpen(false)} className="w-8 h-8 grid place-items-center rounded-lg hover:bg-[#0e1116]">✕</button>
+              </div>
+              <div className="space-y-1">
+                <MenuLink to="/dashboard" label="Dashboard" onClick={() => setOpen(false)} />
+                <MenuLink to="/activities" label="History" onClick={() => setOpen(false)} />
+                <MenuLink to="/shop" label="Shop" onClick={() => setOpen(false)} />
+                <MenuLink to="/warranty" label="Warranty" onClick={() => setOpen(false)} />
+                <MenuLink to="/contact" label="Contact" onClick={() => setOpen(false)} />
+                <MenuLink to="/service-centers" label="Service Centers" onClick={() => setOpen(false)} />
+                <MenuLink to="/settings" label="Settings" onClick={() => setOpen(false)} />
+                <MenuLink to="/admin" label="Admin" onClick={() => setOpen(false)} />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ---------------------------
 // Layout
 // ---------------------------
 const Shell = ({ children }) => {
@@ -168,19 +249,21 @@ const Shell = ({ children }) => {
       <header className="sticky top-0 z-20 backdrop-blur border-b border-[#1b2430] bg-[#0b1020]/70">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="font-bold tracking-wide text-white">Go VV</Link>
-          <nav className="flex items-center gap-4 text-[#cbd5e1]">
-            <Link className="hover:text-white" to="/dashboard">Dashboard</Link>
+          <nav className="flex items-center gap-3 text-[#cbd5e1]">
+            {/* Visible pages only: Home, Track, Profile */}
+            <Link className="hover:text-white hidden md:inline-block" to="/">Home</Link>
             <Link className="hover:text-white" to="/track">Track</Link>
-            <Link className="hover:text-white" to="/activities">History</Link>
-            <Link className="hover:text-white" to="/shop">Shop</Link>
             <Link className="hover:text-white" to="/profile">Profile</Link>
-            <Link className="hover:text-white" to="/settings">Settings</Link>
+            {/* Cart count */}
+            <Link className="hover:text-white hidden md:inline-block" to="/shop">🛒 {cart.count}</Link>
+            {/* Signup/Logout */}
             {!auth.authed ? (
-              <Link className="hover:text-white" to="/signup">Sign up</Link>
+              <Link className="hover:text-white hidden md:inline-block" to="/signup">Sign up</Link>
             ) : (
-              <button className="hover:text-white" onClick={auth.logout}>Logout</button>
+              <button className="hover:text-white hidden md:inline-block" onClick={auth.logout}>Logout</button>
             )}
-            <Link className="hover:text-white" to="/shop">🛒 {cart.count}</Link>
+            {/* Hamburger Menu (mobile + desktop collapsed) */}
+            <HamburgerMenu />
           </nav>
         </div>
       </header>
@@ -238,7 +321,7 @@ const BadgePill = ({ label }) => (
 );
 
 // ---------------------------
-// Dashboard
+// Dashboard (still accessible via menu)
 // ---------------------------
 const Dashboard = () => {
   const [stats, setStats] = useState({ totalKm: 0, rides: 0, points: 0, streak: 0, speeds: [] });
@@ -456,7 +539,7 @@ const Track = () => {
 };
 
 // ---------------------------
-// Activities List & Detail (unchanged)
+// Activities List & Detail
 // ---------------------------
 const Activities = () => {
   const [loading, setLoading] = useState(true);
@@ -567,7 +650,7 @@ const ActivityDetail = () => {
 };
 
 // ---------------------------
-// Profile (with gamification)
+// Profile (with gamification and linked bikes stub)
 // ---------------------------
 const api = axios.create({ baseURL: `${API}` });
 
@@ -579,6 +662,8 @@ const Profile = () => {
   const [avatar, setAvatar] = useState("");
   const [saving, setSaving] = useState(false);
   const [points, setPoints] = useState(0);
+  const [bikes, setBikes] = useState(() => []); // TODO: Persist bikes to backend later
+  const [bikeSerial, setBikeSerial] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -593,9 +678,21 @@ const Profile = () => {
   const onAvatarChange = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setAvatar(reader.result); reader.readAsDataURL(file); };
   const onSave = async () => { setSaving(true); try { const r = await api.put(`/user/profile`, { name, email, avatar_b64: avatar }); setProfile(r.data?.data?.profile || null); } catch (e) { console.error(e); } finally { setSaving(false); } };
 
+  const addBike = () => { if (!bikeSerial) return; setBikes((prev)=>[...prev, { id: crypto.randomUUID(), serial: bikeSerial }]); setBikeSerial(""); };
+  const removeBike = (id) => setBikes((prev)=>prev.filter(b=>b.id!==id));
+
+  // Simple streak calculation
+  const [streak, setStreak] = useState(0);
+  useEffect(() => {
+    (async () => {
+      try { const res = await axios.get(`${API}/activities?limit=200`); const items = res.data?.data?.items || []; const days = new Set(items.map(a=> (a.start_time||"").slice(0,10))); let s=0; const t=new Date(); let d=new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate())); while(days.has(d.toISOString().slice(0,10))){s++; d.setUTCDate(d.getUTCDate()-1);} setStreak(s);} catch(e){}
+    })();
+  }, []);
+
   return (
     <Shell>
       <h1 className="text-2xl font-semibold mb-4">Profile</h1>
+      {streak>0 && <div className="mb-4 p-3 rounded-lg bg-[#0e1116] border border-[#1b2430] text-sm text-[#cbd5e1]">Streak: {streak} day(s). Keep it up!</div>}
       {loading ? (
         <div className="space-y-3"><Skeleton className="h-10"/><Skeleton className="h-10"/><Skeleton className="h-48"/></div>
       ) : (
@@ -626,7 +723,24 @@ const Profile = () => {
               <Button onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
             </div>
           </Card>
-          <Card title="Level & Badges" className="md:col-span-3">
+          <Card title="Linked Bikes">
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input value={bikeSerial} onChange={(e)=>setBikeSerial(e.target.value)} className="flex-1 px-3 py-2 rounded-lg bg-[#0e1116] border border-[#1b2430]" placeholder="Enter serial (TODO: persist to backend)" />
+                <Button onClick={addBike}>Add</Button>
+              </div>
+              <div className="space-y-2">
+                {bikes.length===0 && <div className="text-sm text-[#8b9db2]">No bikes linked yet.</div>}
+                {bikes.map(b=> (
+                  <div key={b.id} className="flex items-center justify-between px-3 py-2 rounded border border-[#1b2430] bg-[#0e1116]">
+                    <div className="text-sm">Serial: {b.serial}</div>
+                    <Button variant="ghost" onClick={()=>removeBike(b.id)}>Remove</Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+          <Card title="Level & Badges" className="md:col-span-2">
             <div className="grid md:grid-cols-2 gap-4 items-center">
               <LevelBadge points={points} />
               <div className="flex gap-2 flex-wrap">
@@ -861,6 +975,37 @@ const Shop = () => {
 };
 
 // ---------------------------
+// Stub Pages for menu
+// ---------------------------
+const Warranty = () => (
+  <Shell>
+    <h1 className="text-2xl font-semibold mb-4">Warranty</h1>
+    <div className="text-[#cbd5e1]">Submit claims, check status, and review coverage. TODO: Wire to backend.</div>
+  </Shell>
+);
+
+const Contact = () => (
+  <Shell>
+    <h1 className="text-2xl font-semibold mb-4">Contact</h1>
+    <div className="text-[#cbd5e1]">Send us a message. TODO: Use /api/contact to email via SMTP.</div>
+  </Shell>
+);
+
+const ServiceCenters = () => (
+  <Shell>
+    <h1 className="text-2xl font-semibold mb-4">Service Centers</h1>
+    <div className="text-[#cbd5e1]">Map and list of nearby centers. TODO: Add data + map.</div>
+  </Shell>
+);
+
+const Admin = () => (
+  <Shell>
+    <h1 className="text-2xl font-semibold mb-4">Admin</h1>
+    <div className="text-[#cbd5e1]">Product/Warranty/Users management stubs. TODO: Implement.</div>
+  </Shell>
+);
+
+// ---------------------------
 // Activities preview (home)
 // ---------------------------
 const ActivitiesPreview = () => {
@@ -904,6 +1049,10 @@ const AppRoutes = () => {
         <Route path="/profile" element={<FadePage><Profile /></FadePage>} />
         <Route path="/settings" element={<FadePage><Settings /></FadePage>} />
         <Route path="/shop" element={<FadePage><Shop /></FadePage>} />
+        <Route path="/warranty" element={<FadePage><Warranty /></FadePage>} />
+        <Route path="/contact" element={<FadePage><Contact /></FadePage>} />
+        <Route path="/service-centers" element={<FadePage><ServiceCenters /></FadePage>} />
+        <Route path="/admin" element={<FadePage><Admin /></FadePage>} />
         <Route path="/signup" element={<FadePage><Signup /></FadePage>} />
       </Routes>
     </AnimatePresence>
@@ -916,7 +1065,9 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <div className="App">
-            <AppRoutes />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
           </div>
         </CartProvider>
       </AuthProvider>
