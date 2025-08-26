@@ -1,34 +1,11 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
-}
+/* Minimal base + Tailwind-friendly customizations */
+.App { min-height: 100vh; }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
-}
+/* Dark scrollbars for aesthetics */
+* { scrollbar-width: thin; scrollbar-color: #1b2430 transparent; }
+*::-webkit-scrollbar { height: 10px; width: 10px; }
+*::-webkit-scrollbar-thumb { background: #1b2430; border-radius: 8px; }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
-}
-
-.App-link {
-    color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
+/* Utility shimmers */
+@keyframes shimmer { 0%{background-position:-468px 0} 100%{background-position:468px 0} }
+.animate-pulse { animation: shimmer 1.2s linear infinite forwards; background: linear-gradient(to right, #0e1116 8%, #121827 18%, #0e1116 33%); background-size: 800px 104px; }
