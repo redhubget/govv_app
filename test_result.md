@@ -351,6 +351,50 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ PASSED - Comprehensive theme preference integration testing completed successfully. All functionality working correctly: 1) Theme selector in /settings properly toggles between System/Dark/Light options, 2) document.documentElement.classList correctly adds/removes 'dark' class (true for dark theme, false for light theme), 3) meta[name=theme-color] updates correctly (#0b1020 for dark, #ffffff for light), 4) System theme follows OS preference accurately, 5) Theme preferences persist correctly after page refresh - ThemeProvider fetches from backend on load and applies saved theme, 6) Save Settings API call works properly (/api/user/settings), 7) PWA Service Worker compatibility maintained - no conflicts or console errors during theme changes, 8) No console errors or warnings detected throughout testing. Theme integration is fully functional and production-ready."
+  - task: "Hamburger menu (mobile+desktop)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Hamburger menu implemented with mobile slide-out drawer and desktop dropdown. Contains links to Dashboard, History, Shop, Warranty, Contact, Service Centers, Settings, Admin. Needs testing for both mobile and desktop viewports."
+  - task: "Track page Leaflet polyline"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Track page with Leaflet map integration implemented. Features MapContainer, TileLayer with OSM, Polyline rendering, FitPath component for auto-zoom, and simulated GPS tracking with real-time polyline updates. Needs testing for map rendering, polyline growth, and ride flow."
+  - task: "Profile linked bikes + avatar"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Profile page includes linked bikes section with add/remove functionality (local state) and avatar upload with base64 preview. Needs testing for bike serial management and avatar upload flow."
+  - task: "Theme switching govv"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Theme switching includes GoVV brand theme option alongside Light/Dark/System. GoVV theme applies both 'govv' and 'dark' classes to document.documentElement. Theme changes update meta theme-color and persist via backend API. Needs testing for all theme options and DOM class management."
 metadata:
   created_by: "main_agent"
   version: "1.0"
