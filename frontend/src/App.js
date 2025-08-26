@@ -42,6 +42,43 @@ import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, useParams
 import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
 
+// ---------------------------
+// Theme Context & Provider
+// ---------------------------
+const ThemeContext = React.createContext({ theme: "system", setTheme: () => {} });
+
+function useApplyTheme(theme) {
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const apply = (isDark) => {
+      const root = document.documentElement;
+      if (isDark) root.classList.add('dark'); else root.classList.remove('dark');
+      if (meta) meta.setAttribute('content', isDark ? '#0b1020' : '#ffffff');
+    };
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const compute = () => theme === 'system' ? mql.matches : (theme === 'dark');
+    apply(compute());
+    if (theme === 'system') {
+      const handler = () => apply(mql.matches);
+      mql.addEventListener ? mql.addEventListener('change', handler) : mql.addListener(handler);
+      return () => { mql.removeEventListener ? mql.removeEventListener('change', handler) : mql.removeListener(handler); };
+    }
+  }, [theme]);
+}
+
+const ThemeProvider = ({ children }) => {
+  const [theme, setTheme] = useState('system');
+  // fetch initial theme from backend settings
+  useEffect(() => {
+    (async () => {
+      try { const r = await axios.get(`${API}/user/settings`); const t = r.data?.data?.settings?.theme; if (t) setTheme(t); } catch (e) { /* ignore */ }
+    })();
+  }, []);
+  useApplyTheme(theme);
+  const value = React.useMemo(() => ({ theme, setTheme }), [theme]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+};
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
