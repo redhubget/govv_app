@@ -1,5 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-/* PWA Install Prompt hook & component */
+import "./App.css";
+import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import axios from "axios";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
+// Asset URLs (sourced via vision_expert_agent)
+const IMG_BIKE = "https://images.unsplash.com/photo-1558978806-73073843b15e"; // Dark-friendly e-bike
+const IMG_HELMET = "https://images.unsplash.com/photo-1590093105704-fddd246ab64f";
+const IMG_LIGHTS = "https://images.unsplash.com/photo-1579118690145-7753994c2d56";
+const IMG_LOCK = "https://images.unsplash.com/photo-1605621290414-c8b7498408fa";
+
+// ---------------------------
+// PWA Install Prompt hook & component
+// ---------------------------
 function usePwaInstall() {
   const [deferred, setDeferred] = React.useState(null);
   const [installed, setInstalled] = React.useState(false);
@@ -36,30 +52,36 @@ const InstallPrompt = () => {
   );
 };
 
-
-import "./App.css";
-import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
-import axios from "axios";
-
 // ---------------------------
-// Theme Context & Provider
+// Theme Context & Provider with govv brand theme
 // ---------------------------
 const ThemeContext = React.createContext({ theme: "system", setTheme: () => {} });
 
 function useApplyTheme(theme) {
   useEffect(() => {
     const meta = document.querySelector('meta[name="theme-color"]');
-    const apply = (isDark) => {
-      const root = document.documentElement;
-      if (isDark) root.classList.add('dark'); else root.classList.remove('dark');
-      if (meta) meta.setAttribute('content', isDark ? '#0b1020' : '#ffffff');
-    };
+    const root = document.documentElement;
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    const compute = () => theme === 'system' ? mql.matches : (theme === 'dark');
+
+    const apply = (mode) => {
+      // reset classes
+      root.classList.remove('dark');
+      root.classList.remove('govv');
+      if (mode === 'dark') root.classList.add('dark');
+      if (mode === 'govv') { root.classList.add('govv'); root.classList.add('dark'); }
+      if (meta) meta.setAttribute('content', mode === 'light' ? '#ffffff' : '#0b1020');
+    };
+
+    const compute = () => {
+      if (theme === 'system') return mql.matches ? 'dark' : 'light';
+      if (theme === 'govv') return 'govv';
+      return theme; // 'dark' | 'light'
+    };
+
     apply(compute());
+
     if (theme === 'system') {
-      const handler = () => apply(mql.matches);
+      const handler = () => apply(mql.matches ? 'dark' : 'light');
       mql.addEventListener ? mql.addEventListener('change', handler) : mql.addListener(handler);
       return () => { mql.removeEventListener ? mql.removeEventListener('change', handler) : mql.removeListener(handler); };
     }
@@ -68,19 +90,31 @@ function useApplyTheme(theme) {
 
 const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState('system');
-  // fetch initial theme from backend settings
-  useEffect(() => {
-    (async () => {
-      try { const r = await axios.get(`${API}/user/settings`); const t = r.data?.data?.settings?.theme; if (t) setTheme(t); } catch (e) { /* ignore */ }
-    })();
-  }, []);
+  useEffect(() => { (async () => { try { const r = await axios.get(`${API}/user/settings`); const t = r.data?.data?.settings?.theme; if (t) setTheme(t); } catch(e){} })(); }, []);
   useApplyTheme(theme);
   const value = React.useMemo(() => ({ theme, setTheme }), [theme]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// ---------------------------
+// Auth Context (OTP placeholder) & Cart Context
+// ---------------------------
+const AuthContext = React.createContext({ authed: false, login: () => {}, logout: () => {} });
+const CartContext = React.createContext({ items: [], add: () => {}, count: 0 });
+
+const AuthProvider = ({ children }) => {
+  const [authed, setAuthed] = useState(() => localStorage.getItem('govv_authed') === '1');
+  const login = () => { setAuthed(true); localStorage.setItem('govv_authed','1'); };
+  const logout = () => { setAuthed(false); localStorage.removeItem('govv_authed'); };
+  return <AuthContext.Provider value={{ authed, login, logout }}>{children}</AuthContext.Provider>;
+};
+
+const CartProvider = ({ children }) => {
+  const [items, setItems] = useState([]);
+  const add = (product) => setItems((prev) => [...prev, product]);
+  const value = React.useMemo(() => ({ items, add, count: items.length }), [items]);
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+};
 
 // ---------------------------
 // Small UI Building Blocks
@@ -124,33 +158,40 @@ const Skeleton = ({ className = "h-4 w-full" }) => (
 // Layout
 // ---------------------------
 const Shell = ({ children }) => {
+  const cart = React.useContext(CartContext);
+  const auth = React.useContext(AuthContext);
   return (
     <div className="min-h-screen text-[#e5e7eb] bg-gradient-to-b from-[#0b1020] to-[#090f1a]">
       <header className="sticky top-0 z-20 backdrop-blur border-b border-[#1b2430] bg-[#0b1020]/70">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-      <InstallPrompt />
-
           <Link to="/" className="font-bold tracking-wide text-white">Go VV</Link>
           <nav className="flex items-center gap-4 text-[#cbd5e1]">
             <Link className="hover:text-white" to="/dashboard">Dashboard</Link>
             <Link className="hover:text-white" to="/track">Track</Link>
             <Link className="hover:text-white" to="/activities">History</Link>
+            <Link className="hover:text-white" to="/shop">Shop</Link>
             <Link className="hover:text-white" to="/profile">Profile</Link>
             <Link className="hover:text-white" to="/settings">Settings</Link>
+            {!auth.authed ? (
+              <Link className="hover:text-white" to="/signup">Sign up</Link>
+            ) : (
+              <button className="hover:text-white" onClick={auth.logout}>Logout</button>
+            )}
+            <Link className="hover:text-white" to="/shop">🛒 {cart.count}</Link>
           </nav>
         </div>
       </header>
       <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
       <footer className="border-t border-[#1b2430] py-6 text-center text-sm text-[#8b9db2]">© {new Date().getFullYear()} Go VV</footer>
+      <InstallPrompt />
     </div>
   );
 };
 
 // ---------------------------
-// Dashboard (cards + tiny charts)
+// Sparkline tiny chart
 // ---------------------------
 const Spark = ({ points = [], color = "#22d3ee" }) => {
-  // points: [numbers]
   const width = 200; const height = 50; const pad = 6;
   if (!points.length) return <svg width={width} height={height}><rect x="0" y="0" width={width} height={height} fill="#0e1116" /></svg>;
   const max = Math.max(...points); const min = Math.min(...points);
@@ -167,40 +208,57 @@ const Spark = ({ points = [], color = "#22d3ee" }) => {
   );
 };
 
-// Route transition wrapper
-const FadePage = ({ children }) => (
-  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
-    {children}
-  </motion.div>
+// ---------------------------
+// Gamification helpers
+// ---------------------------
+const levelFromPoints = (pts) => Math.max(1, Math.floor(pts / 100) + 1);
+const nextLevelAt = (level) => (level) * 100;
+
+const LevelBadge = ({ points }) => {
+  const level = levelFromPoints(points);
+  const progress = Math.min(1, points / nextLevelAt(level));
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-12 h-12 rounded-full bg-[#131a2a] border border-[#1b2430] grid place-items-center text-[#60a5fa] font-bold">{level}</div>
+      <div className="flex-1">
+        <div className="text-sm text-[#8b9db2]">Level {level}</div>
+        <div className="w-full h-2 bg-[#0e1116] rounded">
+          <div className="h-2 bg-[#60a5fa] rounded" style={{ width: `${progress*100}%` }}></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BadgePill = ({ label }) => (
+  <motion.span initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="px-2 py-1 bg-[#0e1116] border border-[#1b2430] rounded text-[#cbd5e1] text-xs">{label}</motion.span>
 );
 
+// ---------------------------
+// Dashboard
+// ---------------------------
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    totalKm: 0,
-    rides: 0,
-    points: 0,
-    streak: 0,
-    speeds: [],
-  });
+  const [stats, setStats] = useState({ totalKm: 0, rides: 0, points: 0, streak: 0, speeds: [] });
+  const [justLeveled, setJustLeveled] = useState(false);
+  const prevPoints = useRef(0);
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await axios.get(`${API}/activities?limit=50`);
         const items = res.data?.data?.items || [];
-        let totalKm = 0; let rides = items.length; let points = 0; let streak = 0; const speeds = [];
+        let totalKm = 0; let rides = items.length; let points = 0; const speeds = [];
         const days = new Set();
         items.forEach((a) => {
           totalKm += a.distance_km || 0; points += a.points_earned || 0; speeds.push(a.avg_kmh || 0);
           const day = (a.start_time || "").slice(0, 10); if (day) days.add(day);
         });
-        // naive streak: count consecutive unique days from today backward
-        const today = new Date();
-        let d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-        while (days.has(d.toISOString().slice(0,10))) {
-          streak += 1; d.setUTCDate(d.getUTCDate() - 1);
-        }
+        // naive streak count
+        let streak = 0; const today = new Date(); let d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+        while (days.has(d.toISOString().slice(0,10))) { streak += 1; d.setUTCDate(d.getUTCDate() - 1); }
         setStats({ totalKm, rides, points, streak, speeds });
+        if (levelFromPoints(points) > levelFromPoints(prevPoints.current)) setJustLeveled(true);
+        prevPoints.current = points;
       } catch (e) { console.error(e); }
     };
     load();
@@ -208,6 +266,19 @@ const Dashboard = () => {
 
   return (
     <Shell>
+      {stats.streak > 0 && (
+        <motion.div initial={{ y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-4 p-3 rounded-lg bg-[#0e1116] border border-[#1b2430] text-sm text-[#cbd5e1]">
+          Keep your streak alive! You're on a {stats.streak}-day streak. Ride today to maintain it.
+        </motion.div>
+      )}
+
+      {justLeveled && (
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mb-4 p-4 rounded-xl bg-[#10162a] border border-[#1b2430] text-center">
+          <div className="text-xl">🎉 Level up!</div>
+          <div className="text-[#8b9db2]">You're now level {levelFromPoints(stats.points)}. Keep riding!</div>
+        </motion.div>
+      )}
+
       <div className="grid md:grid-cols-4 gap-4">
         <Card title="Total Distance">
           <div className="text-3xl font-semibold">{stats.totalKm.toFixed(1)} km</div>
@@ -221,28 +292,72 @@ const Dashboard = () => {
           <div className="text-3xl font-semibold">{stats.points}</div>
           <div className="text-[#8b9db2] mt-1">earn by riding</div>
         </Card>
-        <Card title="Streak">
-          <div className="text-3xl font-semibold">{stats.streak} days</div>
-          <div className="text-[#8b9db2] mt-1">keep going!</div>
+        <Card title="Level">
+          <LevelBadge points={stats.points} />
         </Card>
       </div>
 
       <div className="mt-8 grid md:grid-cols-2 gap-4">
-        <Card title="Quick Actions">
-          <div className="flex gap-3">
-            <Link to="/track"><Button>Start a Ride</Button></Link>
-            <Link to="/activities"><Button variant="ghost">View History</Button></Link>
+        <Card title="Badges">
+          <div className="flex gap-2 flex-wrap">
+            <BadgePill label="Rookie Rider" />
+            <BadgePill label="5 km" />
+            <BadgePill label="10 Rides" />
           </div>
         </Card>
-        <Card title="Tips">
-          <ul className="list-disc list-inside text-[#cbd5e1]">
-            <li>Long-press Pause to add a note mid-ride</li>
-            <li>Turn on Privacy in Settings to disable GPS saving</li>
-          </ul>
+        <Card title="Quick Actions">
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="flex gap-3">
+            <Link to="/track"><Button>Start a Ride</Button></Link>
+            <Link to="/activities"><Button variant="ghost">View History</Button></Link>
+          </motion.div>
         </Card>
       </div>
     </Shell>
   );
+};
+
+// ---------------------------
+// Google Maps integration (optional)
+// ---------------------------
+const GOOGLE_MAPS_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY; // TODO: Set this in frontend/.env if you have a Maps API key
+
+function useGoogleMaps(key) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!key) return;
+    if (window.google && window.google.maps) { setReady(true); return; }
+    const scriptId = 'gmaps-js';
+    if (document.getElementById(scriptId)) return;
+    const s = document.createElement('script');
+    s.id = scriptId; s.async = true; s.defer = true;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}`; // TODO: enable Maps JavaScript API in Google Cloud
+    s.onload = () => setReady(true);
+    s.onerror = () => console.warn('Google Maps failed to load. Using fallback map.');
+    document.head.appendChild(s);
+  }, [key]);
+  return ready;
+}
+
+const GoogleMapView = ({ path }) => {
+  const mapRef = useRef(null);
+  const mapObj = useRef(null);
+  const polyRef = useRef(null);
+
+  useEffect(() => {
+    if (!mapRef.current || !(window.google && window.google.maps)) return;
+    mapObj.current = new window.google.maps.Map(mapRef.current, { zoom: 15, center: { lat: path?.[0]?.lat || 37.7749, lng: path?.[0]?.lng || -122.4194 }, disableDefaultUI: true });
+    polyRef.current = new window.google.maps.Polyline({ path: path.map(p => ({ lat: p.lat, lng: p.lng })), geodesic: true, strokeColor: '#22c55e', strokeOpacity: 1.0, strokeWeight: 3 });
+    polyRef.current.setMap(mapObj.current);
+    return () => { if (polyRef.current) polyRef.current.setMap(null); };
+  }, []);
+
+  useEffect(() => {
+    if (polyRef.current && window.google && window.google.maps) {
+      polyRef.current.setPath(path.map(p => ({ lat: p.lat, lng: p.lng })));
+    }
+  }, [path]);
+
+  return <div ref={mapRef} className="w-full h-[360px] rounded-xl border border-[#1b2430]" />;
 };
 
 // ---------------------------
@@ -265,11 +380,11 @@ const Track = () => {
   const [distance, setDistance] = useState(0);
   const [avgSpeed, setAvgSpeed] = useState(0);
   const [startTime, setStartTime] = useState(null);
+  const mapsReady = useGoogleMaps(GOOGLE_MAPS_KEY);
   const timerRef = useRef(null);
   const navigate = useNavigate();
 
   const durationSec = useMemo(() => startTime ? Math.floor((Date.now() - startTime)/1000) : 0, [startTime, path.length, isPaused, isTracking]);
-
   const base = { lat: 37.7749, lng: -122.4194 };
 
   const step = () => {
@@ -278,7 +393,6 @@ const Track = () => {
         return [{ lat: base.lat, lng: base.lng, t: Date.now()/1000 }];
       }
       const last = prev[prev.length - 1];
-      // small random move (~5-20 meters)
       const dLat = (Math.random() - 0.5) * 0.0002;
       const dLng = (Math.random() - 0.5) * 0.0002;
       const next = { lat: last.lat + dLat, lng: last.lng + dLng, t: Date.now()/1000 };
@@ -288,22 +402,9 @@ const Track = () => {
     });
   };
 
-  useEffect(() => {
-    if (isTracking && !isPaused) {
-      timerRef.current = setInterval(step, 1000);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isTracking, isPaused]);
-
-  useEffect(() => {
-    if (!isTracking) { setPath([]); setDistance(0); setAvgSpeed(0); setStartTime(null); }
-  }, [isTracking]);
-
-  useEffect(() => {
-    if (durationSec > 0) {
-      setAvgSpeed((distance / durationSec) * 3600); // km/h
-    }
-  }, [distance, durationSec]);
+  useEffect(() => { if (isTracking && !isPaused) { timerRef.current = setInterval(step, 1000); } return () => { if (timerRef.current) clearInterval(timerRef.current); }; }, [isTracking, isPaused]);
+  useEffect(() => { if (!isTracking) { setPath([]); setDistance(0); setAvgSpeed(0); setStartTime(null); } }, [isTracking]);
+  useEffect(() => { if (durationSec > 0) setAvgSpeed((distance / durationSec) * 3600); }, [distance, durationSec]);
 
   const onStart = () => { setIsTracking(true); setIsPaused(false); setStartTime(Date.now()); };
   const onPause = () => setIsPaused((p) => !p);
@@ -311,36 +412,14 @@ const Track = () => {
     setIsTracking(false);
     if (path.length < 2) return;
     try {
-      const payload = {
-        name: "Simulated Ride",
-        distance_km: distance,
-        duration_sec: durationSec,
-        avg_kmh: avgSpeed,
-        start_time: new Date(startTime).toISOString(),
-        path,
-        notes: "Simulated GPS ride",
-        private: false,
-      };
+      const payload = { name: "Simulated Ride", distance_km: distance, duration_sec: durationSec, avg_kmh: avgSpeed, start_time: new Date(startTime).toISOString(), path, notes: "Simulated GPS ride", private: false };
       const res = await axios.post(`${API}/activities`, payload);
-      if (res.data?.success) {
-        const id = res.data.data.activity.id;
-        navigate(`/activities/${id}`);
-      }
+      if (res.data?.success) { const id = res.data.data.activity.id; navigate(`/activities/${id}`); }
     } catch (e) { console.error(e); }
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.18 }}
-            className="flex gap-3"
-          >
-            <Link to="/track"><Button>Start a Ride</Button></Link>
-            <Link to="/activities"><Button variant="ghost">View History</Button></Link>
-          </motion.div>
-
   };
 
-  // simple grid map + polyline drawing
-  const Map = () => {
+  // fallback SVG Map
+  const MapFallback = () => {
     const width = 600; const height = 360; const pad = 20;
     const coords = path.length ? path : [{ lat: base.lat, lng: base.lng }];
     const lats = coords.map(p => p.lat); const lngs = coords.map(p => p.lng);
@@ -351,14 +430,8 @@ const Track = () => {
     const d = coords.map((p, i) => `${i === 0 ? "M" : "L"}${scaleX(p.lng)},${scaleY(p.lat)}`).join(" ");
     return (
       <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="bg-[#0b1020] rounded-xl border border-[#1b2430]">
-        {/* grid */}
-        {[...Array(10)].map((_,i) => (
-          <line key={`v${i}`} x1={(i+1)*(width/12)} y1={0} x2={(i+1)*(width/12)} y2={height} stroke="#111827"/>
-        ))}
-        {[...Array(6)].map((_,i) => (
-          <line key={`h${i}`} y1={(i+1)*(height/8)} x1={0} y2={(i+1)*(height/8)} x2={width} stroke="#111827"/>
-        ))}
-        {/* path */}
+        {[...Array(10)].map((_,i) => (<line key={`v${i}`} x1={(i+1)*(width/12)} y1={0} x2={(i+1)*(width/12)} y2={height} stroke="#111827"/>))}
+        {[...Array(6)].map((_,i) => (<line key={`h${i}`} y1={(i+1)*(height/8)} x1={0} y2={(i+1)*(height/8)} x2={width} stroke="#111827"/>))}
         <path d={d} stroke="#22c55e" strokeWidth="3" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
       </svg>
     );
@@ -369,21 +442,24 @@ const Track = () => {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <Card title={isTracking ? (isPaused ? "Paused" : "Live Ride") : "Ready to Ride"}>
-            <Map />
-            <div className="mt-4 grid grid-cols-3 gap-4">
-              <div>
+            {GOOGLE_MAPS_KEY && mapsReady ? <GoogleMapView path={path} /> : <MapFallback />}
+            {!GOOGLE_MAPS_KEY && (
+              <div className="text-xs text-[#8b9db2] mt-2">TODO: Provide REACT_APP_GOOGLE_MAPS_API_KEY in frontend/.env to enable Google Maps.</div>
+            )}
+            <motion.div layout className="mt-4 grid grid-cols-3 gap-4">
+              <motion.div layout>
                 <div className="text-xs text-[#8b9db2]">Distance</div>
                 <div className="text-3xl font-semibold">{distance.toFixed(2)} km</div>
-              </div>
-              <div>
+              </motion.div>
+              <motion.div layout>
                 <div className="text-xs text-[#8b9db2]">Avg Speed</div>
                 <div className="text-3xl font-semibold">{avgSpeed.toFixed(1)} km/h</div>
-              </div>
-              <div>
+              </motion.div>
+              <motion.div layout>
                 <div className="text-xs text-[#8b9db2]">Duration</div>
                 <div className="text-3xl font-semibold">{Math.floor(durationSec/60)}m {durationSec%60}s</div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
             <div className="mt-4 flex gap-3">
               {!isTracking && <Button onClick={onStart}>Start</Button>}
               {isTracking && <Button onClick={onPause}>{isPaused ? "Resume" : "Pause"}</Button>}
@@ -401,27 +477,6 @@ const Track = () => {
           <Card title="Achievements">
             <div className="flex gap-2">
               <span className="px-2 py-1 bg-[#0e1116] border border-[#1b2430] rounded">Rookie Rider</span>
-            <motion.div layout className="mt-4 grid grid-cols-3 gap-4">
-              <motion.div layout>
-                <div className="text-xs text-[#8b9db2]">Distance</div>
-                <div className="text-3xl font-semibold">{distance.toFixed(2)} km</div>
-              </motion.div>
-              <motion.div layout>
-                <div className="text-xs text-[#8b9db2]">Avg Speed</div>
-                <div className="text-3xl font-semibold">{avgSpeed.toFixed(1)} km/h</div>
-              </motion.div>
-              <motion.div layout>
-                <div className="text-xs text-[#8b9db2]">Duration</div>
-                <div className="text-3xl font-semibold">{Math.floor(durationSec/60)}m {durationSec%60}s</div>
-            <div className="mt-4 flex gap-3">
-              {!isTracking && <Button onClick={onStart}>Start</Button>}
-              {isTracking && <Button onClick={onPause}>{isPaused ? "Resume" : "Pause"}</Button>}
-              {isTracking && <Button variant="ghost" onClick={onStop}>Stop & Save</Button>}
-            </div>
-
-              </motion.div>
-            </motion.div>
-
               <span className="px-2 py-1 bg-[#0e1116] border border-[#1b2430] rounded">5 km</span>
             </div>
           </Card>
@@ -484,19 +539,11 @@ const ActivityDetail = () => {
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
-    const load = async () => {
-      try { const res = await axios.get(`${API}/activities/${id}`); setAct(res.data?.data?.activity || null); setIdx(0); }
-      catch (e) { console.error(e); }
-    };
+    const load = async () => { try { const res = await axios.get(`${API}/activities/${id}`); setAct(res.data?.data?.activity || null); setIdx(0); } catch (e) { console.error(e); } };
     load();
   }, [id]);
 
-  useEffect(() => {
-    if (!act?.path?.length) return;
-    const timer = setInterval(() => setIdx((i) => Math.min(i + 1, act.path.length - 1)), 60);
-    return () => clearInterval(timer);
-  }, [act]);
-
+  useEffect(() => { if (!act?.path?.length) return; const timer = setInterval(() => setIdx((i) => Math.min(i + 1, act.path.length - 1)), 60); return () => clearInterval(timer); }, [act]);
   if (!act) return <Shell><Skeleton className="h-40"/></Shell>;
 
   const width = 800; const height = 400; const pad = 20;
@@ -517,12 +564,8 @@ const ActivityDetail = () => {
       <div className="grid md:grid-cols-2 gap-6">
         <Card title="Route Replay" className="md:col-span-2">
           <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="bg-[#0b1020] rounded-xl border border-[#1b2430]">
-            {[...Array(10)].map((_,i) => (
-              <line key={`v${i}`} x1={(i+1)*(width/12)} y1={0} x2={(i+1)*(width/12)} y2={height} stroke="#111827"/>
-            ))}
-            {[...Array(6)].map((_,i) => (
-              <line key={`h${i}`} y1={(i+1)*(height/8)} x1={0} y2={(i+1)*(height/8)} x2={width} stroke="#111827"/>
-            ))}
+            {[...Array(10)].map((_,i) => (<line key={`v${i}`} x1={(i+1)*(width/12)} y1={0} x2={(i+1)*(width/12)} y2={height} stroke="#111827"/>))}
+            {[...Array(6)].map((_,i) => (<line key={`h${i}`} y1={(i+1)*(height/8)} x1={0} y2={(i+1)*(height/8)} x2={width} stroke="#111827"/>))}
             <path d={d} stroke="#60a5fa" strokeWidth="3" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
           </svg>
         </Card>
@@ -554,6 +597,9 @@ const ActivityDetail = () => {
   );
 };
 
+// ---------------------------
+// Profile (completed earlier) - add gamification visuals
+// ---------------------------
 const api = axios.create({ baseURL: `${API}` });
 
 const Profile = () => {
@@ -563,31 +609,20 @@ const Profile = () => {
   const [email, setEmail] = useState("");
   const [avatar, setAvatar] = useState("");
   const [saving, setSaving] = useState(false);
+  const [points, setPoints] = useState(0);
 
   useEffect(() => {
     (async () => {
       try {
         const r = await api.get(`/user/profile`);
         const p = r.data?.data?.profile; setProfile(p); setName(p?.name || ""); setEmail(p?.email || ""); setAvatar(p?.avatar_b64 || "");
+        const acts = await axios.get(`${API}/activities?limit=100`); const items = acts.data?.data?.items || []; setPoints(items.reduce((s,a)=>s+(a.points_earned||0),0));
       } catch (e) { console.error(e);} finally { setLoading(false);} 
     })();
   }, []);
 
-  const onAvatarChange = (e) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setAvatar(reader.result);
-    reader.readAsDataURL(file);
-  };
-
-  const onSave = async () => {
-    setSaving(true);
-    try {
-      const r = await api.put(`/user/profile`, { name, email, avatar_b64: avatar });
-      setProfile(r.data?.data?.profile || null);
-    } catch (e) { console.error(e); }
-    finally { setSaving(false); }
-  };
+  const onAvatarChange = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setAvatar(reader.result); reader.readAsDataURL(file); };
+  const onSave = async () => { setSaving(true); try { const r = await api.put(`/user/profile`, { name, email, avatar_b64: avatar }); setProfile(r.data?.data?.profile || null); } catch (e) { console.error(e); } finally { setSaving(false); } };
 
   return (
     <Shell>
@@ -622,33 +657,35 @@ const Profile = () => {
               <Button onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
             </div>
           </Card>
+          <Card title="Level & Badges" className="md:col-span-3">
+            <div className="grid md:grid-cols-2 gap-4 items-center">
+              <LevelBadge points={points} />
+              <div className="flex gap-2 flex-wrap">
+                <BadgePill label="Rookie Rider" />
+                <BadgePill label="100 km" />
+                <BadgePill label="10 Rides" />
+              </div>
+            </div>
+          </Card>
         </div>
       )}
     </Shell>
   );
 };
 
+// ---------------------------
+// Settings (extended with theme govv option)
+// ---------------------------
 const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({ privacy: false, leaderboard: true, theme: "system", units: "km", notifications: false });
   const themeCtx = React.useContext(ThemeContext);
 
-  useEffect(() => {
-    (async () => {
-      try { const r = await api.get(`/user/settings`); setSettings(r.data?.data?.settings || settings); }
-      catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    })();
-  }, []);
+  useEffect(() => { (async () => { try { const r = await api.get(`/user/settings`); setSettings(r.data?.data?.settings || settings); } catch (e) { console.error(e); } finally { setLoading(false); } })(); }, []);
 
   const update = (patch) => setSettings((s) => ({ ...s, ...patch }));
-  const onSave = async () => {
-    setSaving(true);
-    try { const r = await api.put(`/user/settings`, settings); setSettings(r.data?.data?.settings || settings); }
-    catch (e) { console.error(e); }
-    finally { setSaving(false); }
-  };
+  const onSave = async () => { setSaving(true); try { const r = await api.put(`/user/settings`, settings); setSettings(r.data?.data?.settings || settings); } catch (e) { console.error(e); } finally { setSaving(false); } };
 
   return (
     <Shell>
@@ -665,7 +702,7 @@ const Settings = () => {
               </div>
               <label className="inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only" checked={settings.privacy} onChange={(e) => update({ privacy: e.target.checked })} />
-                <span className={`w-12 h-7 flex items-center bg-${settings.privacy ? '[#4f46e5]' : '[#1b2430]'} rounded-full p-1 duration-300`}>
+                <span className={`w-12 h-7 flex items-center ${settings.privacy ? 'bg-[#4f46e5]' : 'bg-[#1b2430]'} rounded-full p-1 duration-300`}>
                   <span className={`bg-white w-5 h-5 rounded-full shadow transform duration-300 ${settings.privacy ? 'translate-x-5' : ''}`}></span>
                 </span>
               </label>
@@ -679,6 +716,7 @@ const Settings = () => {
                   <option value="system">System</option>
                   <option value="dark">Dark</option>
                   <option value="light">Light</option>
+                  <option value="govv">GoVV</option>
                 </select>
               </div>
               <div>
@@ -689,8 +727,6 @@ const Settings = () => {
                 </select>
               </div>
             </div>
-  const themeCtx = React.useContext(ThemeContext);
-
           </Card>
           <Card title="Social">
             <div className="flex items-center justify-between">
@@ -719,6 +755,95 @@ const Settings = () => {
   );
 };
 
+// ---------------------------
+// Signup (OTP placeholder)
+// ---------------------------
+const Signup = () => {
+  const [email, setEmail] = useState("");
+  const [step, setStep] = useState("start");
+  const [otp, setOtp] = useState("");
+  const auth = React.useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const sendOtp = () => {
+    if (!email) return; // simple placeholder
+    setStep("verify");
+  };
+
+  const verify = () => {
+    // Placeholder: any 6-digit code accepted
+    if (otp.length >= 4) {
+      auth.login();
+      navigate("/dashboard");
+    }
+  };
+
+  return (
+    <Shell>
+      <div className="max-w-md mx-auto">
+        <Card title="Sign up with Email">
+          {step === 'start' && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-[#8b9db2]">Email</label>
+                <input value={email} onChange={(e)=>setEmail(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-[#0e1116] border border-[#1b2430]" placeholder="you@example.com" />
+              </div>
+              <Button onClick={sendOtp}>Send OTP</Button>
+              <div className="text-xs text-[#8b9db2]">We will send a one-time code to your email. TODO: Wire real email OTP.</div>
+            </div>
+          )}
+          {step === 'verify' && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-[#8b9db2]">Enter OTP</label>
+                <input value={otp} onChange={(e)=>setOtp(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-[#0e1116] border border-[#1b2430]" placeholder="123456" />
+              </div>
+              <Button onClick={verify}>Verify &amp; Continue</Button>
+            </div>
+          )}
+        </Card>
+      </div>
+    </Shell>
+  );
+};
+
+// ---------------------------
+// Home with Cycle Info
+// ---------------------------
+const CycleCard = () => {
+  const [battery, setBattery] = useState(76);
+  const [locked, setLocked] = useState(true);
+  const maxRange = 80; // km
+  const range = Math.round((battery/100) * maxRange);
+  return (
+    <Card title="Your Cycle">
+      <div className="grid md:grid-cols-2 gap-4 items-center">
+        <div className="relative">
+          <img src={IMG_BIKE} alt="bike" className="w-full h-48 object-cover rounded-lg border border-[#1b2430]"/>
+          <div className="absolute top-2 left-2 text-xs px-2 py-1 rounded bg-black/50">{locked ? 'Locked' : 'Unlocked'}</div>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <svg width="72" height="72" viewBox="0 0 120 120" className="shrink-0">
+              <circle cx="60" cy="60" r="52" stroke="#1b2430" strokeWidth="12" fill="none" />
+              <circle cx="60" cy="60" r="52" stroke="#22c55e" strokeWidth="12" fill="none" strokeDasharray={`${Math.max(0,battery)} 100`} transform="rotate(-90 60 60)" />
+              <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fill="#e5e7eb" fontSize="18">{battery}%</text>
+            </svg>
+            <div>
+              <div className="text-3xl font-semibold">{range} km</div>
+              <div className="text-sm text-[#8b9db2]">Estimated range</div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Button onClick={() => setLocked(v=>!v)}>{locked ? 'Unlock' : 'Lock'}</Button>
+            <Button variant="ghost" onClick={() => setBattery(Math.min(100, battery+5))}>+5% Battery</Button>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+};
+
 const Home = () => (
   <Shell>
     <div className="grid md:grid-cols-2 gap-6">
@@ -729,13 +854,46 @@ const Home = () => (
           <Link to="/dashboard"><Button variant="ghost">Open Dashboard</Button></Link>
         </div>
       </Card>
-      <Card title="Recent Activity">
-        <ActivitiesPreview />
-      </Card>
+      <CycleCard />
     </div>
   </Shell>
 );
 
+// ---------------------------
+// Shop Page (mock products)
+// ---------------------------
+const PRODUCTS = [
+  { id: 'helmet1', name: 'Aero Helmet', price: 59.99, img: IMG_HELMET },
+  { id: 'lights1', name: 'LED Light Set', price: 29.99, img: IMG_LIGHTS },
+  { id: 'lock1', name: 'U-Lock Pro', price: 39.99, img: IMG_LOCK },
+];
+
+const Shop = () => {
+  const cart = React.useContext(CartContext);
+  const [info, setInfo] = useState("");
+  const add = (p) => { cart.add(p); setInfo(`${p.name} added to cart`); setTimeout(()=>setInfo(""), 1500); };
+  return (
+    <Shell>
+      <h1 className="text-2xl font-semibold mb-4">Shop Accessories</h1>
+      {info && <div className="mb-3 text-sm text-[#cbd5e1]">{info}</div>}
+      <div className="grid md:grid-cols-3 gap-4">
+        {PRODUCTS.map(p => (
+          <Card key={p.id} title={p.name}>
+            <img src={p.img} alt={p.name} className="w-full h-40 object-cover rounded-lg border border-[#1b2430]"/>
+            <div className="mt-3 flex items-center justify-between">
+              <div className="text-lg font-semibold">${p.price.toFixed(2)}</div>
+              <Button onClick={() => add(p)}>Add to Cart</Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </Shell>
+  );
+};
+
+// ---------------------------
+// Activities preview (home)
+// ---------------------------
 const ActivitiesPreview = () => {
   const [items, setItems] = useState([]);
   useEffect(() => { (async () => { try { const r = await axios.get(`${API}/activities?limit=5`); setItems(r.data?.data?.items || []);} catch(e){} })(); }, []);
@@ -753,6 +911,15 @@ const ActivitiesPreview = () => {
 };
 
 // ---------------------------
+// Route transition wrapper
+// ---------------------------
+const FadePage = ({ children }) => (
+  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
+    {children}
+  </motion.div>
+);
+
+// ---------------------------
 // Routes Component
 // ---------------------------
 const AppRoutes = () => {
@@ -767,6 +934,8 @@ const AppRoutes = () => {
         <Route path="/activities/:id" element={<FadePage><ActivityDetail /></FadePage>} />
         <Route path="/profile" element={<FadePage><Profile /></FadePage>} />
         <Route path="/settings" element={<FadePage><Settings /></FadePage>} />
+        <Route path="/shop" element={<FadePage><Shop /></FadePage>} />
+        <Route path="/signup" element={<FadePage><Signup /></FadePage>} />
       </Routes>
     </AnimatePresence>
   );
@@ -775,9 +944,15 @@ const AppRoutes = () => {
 function App() {
   return (
     <ThemeProvider>
-      <div className="App">
-        <AppRoutes />
-      </div>
+      <AuthProvider>
+        <CartProvider>
+          <div className="App">
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </div>
+        </CartProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
