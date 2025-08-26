@@ -252,6 +252,197 @@ def test_contact_endpoint():
         log_test("Contact Endpoint", False, f"Request failed: {str(e)}")
         return False
 
+def test_get_user_profile():
+    """Test 6: GET /api/user/profile"""
+    try:
+        response = requests.get(f"{BACKEND_URL}/api/user/profile", timeout=10)
+        
+        if response.status_code != 200:
+            log_test("Get User Profile", False, f"Expected status 200, got {response.status_code}")
+            return False
+            
+        data = response.json()
+        
+        if not data.get('success'):
+            log_test("Get User Profile", False, f"Expected success=true, got {data.get('success')}")
+            return False
+            
+        profile = data.get('data', {}).get('profile')
+        if not profile:
+            log_test("Get User Profile", False, "No profile in response data")
+            return False
+            
+        # Check required fields: id, name, email, avatar_b64 (nullable), preferences object, ISO dates
+        required_fields = ['id', 'name', 'email', 'preferences', 'created_at', 'updated_at']
+        for field in required_fields:
+            if field not in profile:
+                log_test("Get User Profile", False, f"Profile missing required field: {field}")
+                return False
+                
+        # avatar_b64 is nullable, so just check it exists in the response
+        if 'avatar_b64' not in profile:
+            log_test("Get User Profile", False, "Profile missing avatar_b64 field (should be nullable)")
+            return False
+            
+        # Check preferences object has expected keys
+        preferences = profile.get('preferences', {})
+        expected_pref_keys = ['privacy', 'leaderboard', 'theme', 'units', 'notifications']
+        for key in expected_pref_keys:
+            if key not in preferences:
+                log_test("Get User Profile", False, f"Preferences missing key: {key}")
+                return False
+                
+        # Check ISO date format
+        for date_field in ['created_at', 'updated_at']:
+            date_value = profile[date_field]
+            if not isinstance(date_value, str):
+                log_test("Get User Profile", False, f"Expected {date_field} to be ISO string, got {type(date_value)}")
+                return False
+            try:
+                datetime.fromisoformat(date_value.replace('Z', '+00:00'))
+            except:
+                log_test("Get User Profile", False, f"Invalid ISO date format for {date_field}: {date_value}")
+                return False
+                
+        log_test("Get User Profile", True, f"Profile retrieved with id: {profile.get('id')}, name: {profile.get('name')}")
+        return True
+        
+    except Exception as e:
+        log_test("Get User Profile", False, f"Request failed: {str(e)}")
+        return False
+
+def test_update_user_profile():
+    """Test 7: PUT /api/user/profile"""
+    try:
+        payload = {
+            "name": "Alex Rider",
+            "email": "alex@example.com"
+        }
+        
+        response = requests.put(
+            f"{BACKEND_URL}/api/user/profile",
+            json=payload,
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            log_test("Update User Profile", False, f"Expected status 200, got {response.status_code}. Response: {response.text}")
+            return False
+            
+        data = response.json()
+        
+        if not data.get('success'):
+            log_test("Update User Profile", False, f"Expected success=true, got {data.get('success')}")
+            return False
+            
+        profile = data.get('data', {}).get('profile')
+        if not profile:
+            log_test("Update User Profile", False, "No profile in response data")
+            return False
+            
+        # Check that the fields were updated
+        if profile.get('name') != "Alex Rider":
+            log_test("Update User Profile", False, f"Expected name='Alex Rider', got {profile.get('name')}")
+            return False
+            
+        if profile.get('email') != "alex@example.com":
+            log_test("Update User Profile", False, f"Expected email='alex@example.com', got {profile.get('email')}")
+            return False
+            
+        log_test("Update User Profile", True, f"Profile updated successfully: name={profile.get('name')}, email={profile.get('email')}")
+        return True
+        
+    except Exception as e:
+        log_test("Update User Profile", False, f"Request failed: {str(e)}")
+        return False
+
+def test_get_user_settings():
+    """Test 8: GET /api/user/settings"""
+    try:
+        response = requests.get(f"{BACKEND_URL}/api/user/settings", timeout=10)
+        
+        if response.status_code != 200:
+            log_test("Get User Settings", False, f"Expected status 200, got {response.status_code}")
+            return False
+            
+        data = response.json()
+        
+        if not data.get('success'):
+            log_test("Get User Settings", False, f"Expected success=true, got {data.get('success')}")
+            return False
+            
+        settings = data.get('data', {}).get('settings')
+        if not settings:
+            log_test("Get User Settings", False, "No settings in response data")
+            return False
+            
+        # Check default settings keys
+        expected_keys = ['privacy', 'leaderboard', 'theme', 'units', 'notifications']
+        for key in expected_keys:
+            if key not in settings:
+                log_test("Get User Settings", False, f"Settings missing key: {key}")
+                return False
+                
+        log_test("Get User Settings", True, f"Settings retrieved with keys: {list(settings.keys())}")
+        return True
+        
+    except Exception as e:
+        log_test("Get User Settings", False, f"Request failed: {str(e)}")
+        return False
+
+def test_update_user_settings():
+    """Test 9: PUT /api/user/settings"""
+    try:
+        payload = {
+            "privacy": True,
+            "theme": "dark",
+            "units": "mi",
+            "notifications": True
+        }
+        
+        response = requests.put(
+            f"{BACKEND_URL}/api/user/settings",
+            json=payload,
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            log_test("Update User Settings", False, f"Expected status 200, got {response.status_code}. Response: {response.text}")
+            return False
+            
+        data = response.json()
+        
+        if not data.get('success'):
+            log_test("Update User Settings", False, f"Expected success=true, got {data.get('success')}")
+            return False
+            
+        settings = data.get('data', {}).get('settings')
+        if not settings:
+            log_test("Update User Settings", False, "No settings in response data")
+            return False
+            
+        # Check that the fields were updated
+        expected_updates = {
+            "privacy": True,
+            "theme": "dark", 
+            "units": "mi",
+            "notifications": True
+        }
+        
+        for key, expected_value in expected_updates.items():
+            if settings.get(key) != expected_value:
+                log_test("Update User Settings", False, f"Expected {key}={expected_value}, got {settings.get(key)}")
+                return False
+                
+        log_test("Update User Settings", True, f"Settings updated successfully: {expected_updates}")
+        return True
+        
+    except Exception as e:
+        log_test("Update User Settings", False, f"Request failed: {str(e)}")
+        return False
+
 def main():
     """Run all tests in order"""
     print("Starting Backend API Tests")
