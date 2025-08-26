@@ -290,6 +290,16 @@ const Track = () => {
         navigate(`/activities/${id}`);
       }
     } catch (e) { console.error(e); }
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18 }}
+            className="flex gap-3"
+          >
+            <Link to="/track"><Button>Start a Ride</Button></Link>
+            <Link to="/activities"><Button variant="ghost">View History</Button></Link>
+          </motion.div>
+
   };
 
   // simple grid map + polyline drawing
