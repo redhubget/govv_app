@@ -312,6 +312,34 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ PASSED - Comprehensive micro-interactions testing completed successfully. Dashboard cards properly implement hover effects with whileHover={{ y: -2, scale: 1.01 }} and spring transitions (tested on all 4 stat cards). Buttons correctly implement tap effects with whileTap={{ scale: 0.96 }} and spring transitions (tested Start, Pause, Resume, Stop & Save, View History buttons). Quick Actions group animates in properly with motion.div initial/animate properties. Track stats (Distance/Avg Speed/Duration) use layout animations with motion.div layout attribute for smooth number updates without jank during tracking. No console errors detected during testing. All micro-interactions are smooth and responsive with proper Framer Motion spring physics."
+  - task: "Profile page (edit name/email/avatar)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented Profile page with avatar upload (base64), name/email editing functionality using GET/PUT /api/user/profile endpoints."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Profile page testing completed successfully. Inputs properly prefill with existing user data (name: 'John Rider', email: 'john.rider@example.com'). Avatar upload UI is functional with 'No image' placeholder displayed when no avatar is set, and Upload button triggers file input correctly. Profile editing works perfectly - updated name to 'Jane Rider' and email to 'jane.rider@example.com', clicked Save Changes button, and verified changes persist in the form fields. All API requests use correct backend URL (https://govv-pwa.preview.emergentagent.com/api/user/profile) with proper /api prefix. No console errors detected. Profile functionality is fully working and production-ready."
+  - task: "Settings page (privacy, theme, units, leaderboard, notifications)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented Settings page with privacy toggle, theme selector, units selector, leaderboard checkbox, and notifications checkbox using GET/PUT /api/user/settings endpoints."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Settings page testing completed successfully. All controls work perfectly: Private Mode toggle (initially ON, toggleable), Theme selector (successfully set to Dark), Units selector (successfully set to Miles), Leaderboard checkbox is properly toggleable (tested ON→OFF→ON transitions), Notifications checkbox (enabled successfully). Save Settings button works correctly and all settings persist after page reload - verified Theme=Dark, Units=Miles, Privacy=ON, Notifications=ON all maintained after refresh. All API requests use correct backend URL (https://govv-pwa.preview.emergentagent.com/api/user/settings) with proper /api prefix. No console errors detected. Settings functionality is fully working and production-ready."
 metadata:
   created_by: "main_agent"
   version: "1.0"
