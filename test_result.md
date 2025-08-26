@@ -174,6 +174,62 @@ backend:
       - working: true
         agent: "testing"
         comment: "✅ PASSED - Correctly returns success=false with TODO message about configuring EMAIL_USER/EMAIL_PASS when no email credentials are set. Behavior matches specification."
+  - task: "User Profile GET /api/user/profile"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented GET /api/user/profile endpoint with default user creation, returns profile with id, name, email, avatar_b64 (nullable), preferences object, and ISO dates."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Successfully retrieves user profile with all required fields: id (9f1b4a5e-0c1f-4f2a-b4a9-bdc56a17c0aa), name (Rider), email, avatar_b64 (nullable), preferences object with all expected keys (privacy, leaderboard, theme, units, notifications), and valid ISO date strings for created_at and updated_at."
+  - task: "User Profile PUT /api/user/profile"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented PUT /api/user/profile endpoint to update user name, email, and avatar_b64 with validation and size limits."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Successfully updates user profile fields. Tested with payload {name:'Alex Rider', email:'alex@example.com'} and confirmed both fields were updated correctly in the response. Returns success=true with updated profile data."
+  - task: "User Settings GET /api/user/settings"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented GET /api/user/settings endpoint that returns user preferences with default settings structure."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Successfully retrieves user settings with all expected default keys: privacy, leaderboard, theme, units, notifications. Returns success=true with proper settings object structure."
+  - task: "User Settings PUT /api/user/settings"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented PUT /api/user/settings endpoint to update user preferences with selective field updates."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Successfully updates user settings. Tested with payload {privacy:true, theme:'dark', units:'mi', notifications:true} and confirmed all fields were updated correctly. Returns success=true with updated settings values."
 frontend:
   - task: "Simulated GPS tracking and save to backend"
     implemented: true
