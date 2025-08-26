@@ -517,19 +517,167 @@ const ActivityDetail = () => {
   );
 };
 
-const Profile = () => (
-  <Shell>
-    <h1 className="text-2xl font-semibold mb-2">Profile</h1>
-    <div className="text-[#8b9db2]">Edit info, avatar, linked bikes — Coming soon.</div>
-  </Shell>
-);
+const api = axios.create({ baseURL: `${API}` });
 
-const Settings = () => (
-  <Shell>
-    <h1 className="text-2xl font-semibold mb-2">Settings</h1>
-    <div className="text-[#8b9db2]">Privacy toggle, theme, leaderboard — Coming soon.</div>
-  </Shell>
-);
+const Profile = () => {
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [avatar, setAvatar] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await api.get(`/user/profile`);
+        const p = r.data?.data?.profile; setProfile(p); setName(p?.name || ""); setEmail(p?.email || ""); setAvatar(p?.avatar_b64 || "");
+      } catch (e) { console.error(e);} finally { setLoading(false);} 
+    })();
+  }, []);
+
+  const onAvatarChange = (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setAvatar(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const onSave = async () => {
+    setSaving(true);
+    try {
+      const r = await api.put(`/user/profile`, { name, email, avatar_b64: avatar });
+      setProfile(r.data?.data?.profile || null);
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Shell>
+      <h1 className="text-2xl font-semibold mb-4">Profile</h1>
+      {loading ? (
+        <div className="space-y-3"><Skeleton className="h-10"/><Skeleton className="h-10"/><Skeleton className="h-48"/></div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-6">
+          <Card title="Avatar">
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-full overflow-hidden border border-[#1b2430] bg-[#0e1116]">
+                {avatar ? <img alt="avatar" src={avatar} className="w-full h-full object-cover"/> : <div className="w-full h-full grid place-items-center text-[#8b9db2] text-sm">No image</div>}
+              </div>
+              <div>
+                <input id="avatar" type="file" accept="image/*" className="hidden" onChange={onAvatarChange} />
+                <label htmlFor="avatar"><Button variant="ghost">Upload</Button></label>
+              </div>
+            </div>
+          </Card>
+          <Card title="Basic Info" className="md:col-span-2">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-[#8b9db2]">Name</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-[#0e1116] border border-[#1b2430] outline-none focus:border-[#4f46e5]" placeholder="Your name" />
+              </div>
+              <div>
+                <label className="text-sm text-[#8b9db2]">Email</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-[#0e1116] border border-[#1b2430] outline-none focus:border-[#4f46e5]" placeholder="you@example.com" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <Button onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+    </Shell>
+  );
+};
+
+const Settings = () => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState({ privacy: false, leaderboard: true, theme: "system", units: "km", notifications: false });
+
+  useEffect(() => {
+    (async () => {
+      try { const r = await api.get(`/user/settings`); setSettings(r.data?.data?.settings || settings); }
+      catch (e) { console.error(e); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const update = (patch) => setSettings((s) => ({ ...s, ...patch }));
+  const onSave = async () => {
+    setSaving(true);
+    try { const r = await api.put(`/user/settings`, settings); setSettings(r.data?.data?.settings || settings); }
+    catch (e) { console.error(e); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Shell>
+      <h1 className="text-2xl font-semibold mb-4">Settings</h1>
+      {loading ? (
+        <div className="space-y-3"><Skeleton className="h-10"/><Skeleton className="h-10"/><Skeleton className="h-10"/></div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card title="Privacy">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Private Mode</div>
+                <div className="text-sm text-[#8b9db2]">Don’t save GPS history</div>
+              </div>
+              <label className="inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only" checked={settings.privacy} onChange={(e) => update({ privacy: e.target.checked })} />
+                <span className={`w-12 h-7 flex items-center bg-${settings.privacy ? '[#4f46e5]' : '[#1b2430]'} rounded-full p-1 duration-300`}>
+                  <span className={`bg-white w-5 h-5 rounded-full shadow transform duration-300 ${settings.privacy ? 'translate-x-5' : ''}`}></span>
+                </span>
+              </label>
+            </div>
+          </Card>
+          <Card title="Display">
+            <div className="grid gap-3">
+              <div>
+                <label className="text-sm text-[#8b9db2]">Theme</label>
+                <select value={settings.theme} onChange={(e) => update({ theme: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-lg bg-[#0e1116] border border-[#1b2430]">
+                  <option value="system">System</option>
+                  <option value="dark">Dark</option>
+                  <option value="light">Light</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm text-[#8b9db2]">Units</label>
+                <select value={settings.units} onChange={(e) => update({ units: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-lg bg-[#0e1116] border border-[#1b2430]">
+                  <option value="km">Kilometers</option>
+                  <option value="mi">Miles</option>
+                </select>
+              </div>
+            </div>
+          </Card>
+          <Card title="Social">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Leaderboard</div>
+                <div className="text-sm text-[#8b9db2]">Include my rides in leaderboards</div>
+              </div>
+              <input type="checkbox" checked={settings.leaderboard} onChange={(e) => update({ leaderboard: e.target.checked })} />
+            </div>
+          </Card>
+          <Card title="Notifications">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Enable Notifications</div>
+                <div className="text-sm text-[#8b9db2]">Ride reminders and achievements</div>
+              </div>
+              <input type="checkbox" checked={settings.notifications} onChange={(e) => update({ notifications: e.target.checked })} />
+            </div>
+          </Card>
+          <div className="md:col-span-2">
+            <Button onClick={onSave} disabled={saving}>{saving ? 'Saving...' : 'Save Settings'}</Button>
+          </div>
+        </div>
+      )}
+    </Shell>
+  );
+};
 
 const Home = () => (
   <Shell>
