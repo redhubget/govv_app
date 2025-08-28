@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+// App.js (updated & fixed)
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -7,8 +8,8 @@ import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || ""; 
+const API = BACKEND_URL ? `${BACKEND_URL}/api` : (process.env.REACT_APP_API_URL || "https://your-backend-url.com/api");
 
 // Asset URLs (sourced via vision_expert_agent)
 const IMG_BIKE = "https://images.unsplash.com/photo-1558978806-73073843b15e"; // Dark-friendly e-bike
@@ -139,7 +140,9 @@ const Button = ({ children, onClick, variant = "primary", disabled }) => {
     ? "bg-[#4f46e5] hover:bg-[#4338ca] text-white"
     : variant === "ghost"
       ? "bg-transparent hover:bg-[#0e1116] text-[#cbd5e1] border border-[#1f2937]"
-      : "bg-[#0e1116] hover:bg-[#111827] text-[#e5e7eb]";
+      : variant === "destructive"
+        ? "bg-red-600 hover:bg-red-700 text-white"
+        : "bg-[#0e1116] hover:bg-[#111827] text-[#e5e7eb]";
   return (
     <motion.button
       whileTap={{ scale: 0.96 }}
@@ -403,22 +406,34 @@ const Dashboard = () => {
 };
 
 // ---------------------------
-// Leaflet Map for Tracking
+// Leaflet Map for Tracking (react-leaflet implementation)
 // ---------------------------
+
+// FitPath: Auto-zoom the map to fit the path
 const FitPath = ({ path }) => {
   const map = useMap();
   useEffect(() => {
     if (!path || path.length === 0) return;
     const bounds = L.latLngBounds(path.map(p => [p.lat, p.lng]));
     map.fitBounds(bounds, { padding: [20, 20] });
-  }, [path]);
+  }, [path, map]);
   return null;
 };
 
-const LeafletMapView = ({ path, base }) => {
+// Map view that uses react-leaflet's MapContainer
+const LeafletMapView = ({ path = [], base }) => {
+  // center on the first point or base
   const center = path.length ? [path[0].lat, path[0].lng] : [base.lat, base.lng];
+
   return (
-    <MapContainer center={center} zoom={15} className="w-full h-[360px] rounded-xl border border-[#1b2430]" scrollWheelZoom={true} zoomControl={false}>
+    <MapContainer
+      center={center}
+      zoom={15}
+      className="w-full h-[360px] rounded-xl border border-[#1b2430]"
+      scrollWheelZoom={true}
+      zoomControl={false}
+      // Do not provide a changing key or id here — keep instance managed by react-leaflet
+    >
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -436,73 +451,233 @@ const LeafletMapView = ({ path, base }) => {
 };
 
 // ---------------------------
-// Tracking (simulated GPS + polyline + metrics) — Fixed
+// Haversine formula, tracking component & helpers
 // ---------------------------
-
-
 const haversine = (lat1, lon1, lat2, lon2) => {
-const R = 6371; // km
-const toRad = (d) => (d * Math.PI) / 180;
-const dLat = toRad(lat2 - lat1);
-const dLon = toRad(lon2 - lon1);
-const a = Math.sin(dLat / 2) ** 2 +
-Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-return R * c;
+  const R = 6371; // km
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 };
 
+// NOTE: Track must be a named component (not default export) because App is exported at the bottom
+const Track = () => {
+  const [isTracking, setIsTracking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [path, setPath] = useState([]); // [{lat,lng,t}]
+  const [distance, setDistance] = useState(0); // in km
+  const [avgSpeed, setAvgSpeed] = useState(0); // km/h
+  const [startTime, setStartTime] = useState(null);
 
-const API = process.env.REACT_APP_API_URL || "https://your-backend-url.com/api";
+  // To account for pause duration so duration excludes paused time
+  const pausedDurationRef = useRef(0);
+  const pauseStartRef = useRef(null);
 
+  const timerRef = useRef(null);
+  const pathRef = useRef([]);
+  const navigate = useNavigate();
 
-export default function Track() {
-const [isTracking, setIsTracking] = useState(false);
-const [isPaused, setIsPaused] = useState(false);
-const [path, setPath] = useState([]); // [{lat,lng,t}]
-const [distance, setDistance] = useState(0); // in km
-const [avgSpeed, setAvgSpeed] = useState(0); // km/h
-const [startTime, setStartTime] = useState(null);
-const timerRef = useRef(null);
-const pathRef = useRef(path);
-const navigate = useNavigate();
+  // Keep a ref copy of path for async callbacks
+  useEffect(() => { pathRef.current = path; }, [path]);
 
+  const base = { lat: 37.7749, lng: -122.4194 };
 
-// keep ref synced so async callbacks always see latest
-useEffect(() => { pathRef.current = path; }, [path]);
+  // stable step callback that appends simulated GPS points
+  const step = useCallback(() => {
+    setPath((prev) => {
+      const now = Date.now() / 1000;
+      if (prev.length === 0) {
+        const first = [{ lat: base.lat, lng: base.lng, t: now }];
+        pathRef.current = first;
+        return first;
+      }
+      const last = prev[prev.length - 1];
+      const dLat = (Math.random() - 0.5) * 0.0002;
+      const dLng = (Math.random() - 0.5) * 0.0002;
+      const next = { lat: last.lat + dLat, lng: last.lng + dLng, t: now };
+      const d = haversine(last.lat, last.lng, next.lat, next.lng); // km
+      // use functional update for distance to avoid stale closures
+      setDistance((cur) => cur + d);
+      const updated = [...prev, next];
+      pathRef.current = updated;
+      return updated;
+    });
+  }, [base.lat, base.lng]);
 
+  // Start tracking: reset necessary states, begin interval
+  const startTracking = () => {
+    if (isTracking) return;
+    setIsTracking(true);
+    setIsPaused(false);
+    pausedDurationRef.current = 0;
+    pauseStartRef.current = null;
+    setDistance(0);
+    setAvgSpeed(0);
+    setPath([]);
+    setStartTime(Date.now());
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    timerRef.current = setInterval(step, 1000);
+  };
 
-const durationSec = useMemo(() => {
-if (!startTime) return 0;
-// duration should stop counting when paused
-if (isPaused || !isTracking) return Math.floor((Date.now() - startTime) / 1000);
-return Math.floor((Date.now() - startTime) / 1000);
-}, [startTime, isPaused, isTracking]);
+  // Pause tracking: stop interval and track pause start time
+  const pauseTracking = () => {
+    if (!isTracking || isPaused) return;
+    setIsPaused(true);
+    pauseStartRef.current = Date.now();
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  };
 
+  // Resume tracking: add paused time to pausedDuration and restart interval
+  const resumeTracking = () => {
+    if (!isTracking || !isPaused) return;
+    setIsPaused(false);
+    if (pauseStartRef.current) {
+      pausedDurationRef.current += (Date.now() - pauseStartRef.current);
+      pauseStartRef.current = null;
+    }
+    if (!timerRef.current) timerRef.current = setInterval(step, 1000);
+  };
 
-const base = { lat: 37.7749, lng: -122.4194 };
+  // Stop tracking: stop interval and optionally save to backend
+  const stopTracking = async () => {
+    if (!isTracking) return;
+    setIsTracking(false);
+    setIsPaused(false);
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
 
+    const currentPath = pathRef.current || [];
+    if (!currentPath || currentPath.length < 2) {
+      // nothing to save
+      setPath([]);
+      setDistance(0);
+      setAvgSpeed(0);
+      setStartTime(null);
+      return;
+    }
 
-// step is wrapped in useCallback to ensure stable reference for interval
-const step = useCallback(() => {
-setPath((prev) => {
-const now = Date.now() / 1000;
-if (prev.length === 0) {
-const first = [{ lat: base.lat, lng: base.lng, t: now }];
-pathRef.current = first;
-return first;
-}
-const last = prev[prev.length - 1];
-const dLat = (Math.random() - 0.5) * 0.0002;
-const dLng = (Math.random() - 0.5) * 0.0002;
-const next = { lat: last.lat + dLat, lng: last.lng + dLng, t: now };
-const d = haversine(last.lat, last.lng, next.lat, next.lng); // km
-// update distance using functional state update to avoid stale closures
-setDistance((cur) => cur + d);
-const updated = [...prev, next];
-pathRef.current = updated;
-return updated;
-});
-}
+    // compute duration excluding paused time
+    const durationMs = Date.now() - (startTime || Date.now()) - pausedDurationRef.current;
+    const durationSec = Math.max(0, Math.floor(durationMs / 1000));
+
+    // compute avg speed
+    const avgKmh = durationSec > 0 ? (distance / (durationSec / 3600)) : 0;
+
+    // prepare payload - this mirrors what you had previously
+    const payload = {
+      name: "Simulated Ride",
+      distance_km: Number(distance.toFixed(4)),
+      duration_sec: durationSec,
+      avg_kmh: Number(avgKmh.toFixed(2)),
+      start_time: startTime ? new Date(startTime).toISOString() : new Date().toISOString(),
+      path: currentPath,
+      notes: "Simulated GPS ride",
+      private: false
+    };
+
+    try {
+      // optionally save to backend
+      const res = await axios.post(`${API}/activities`, payload);
+      if (res?.data?.success) {
+        const id = res.data.data.activity.id;
+        // reset local state after successful save
+        setPath([]);
+        setDistance(0);
+        setAvgSpeed(0);
+        setStartTime(null);
+        pausedDurationRef.current = 0;
+        navigate(`/activities/${id}`);
+        return;
+      } else {
+        // fallback: just reset but keep error in console
+        setPath([]);
+        setDistance(0);
+        setAvgSpeed(0);
+        setStartTime(null);
+        pausedDurationRef.current = 0;
+      }
+    } catch (e) {
+      console.error("Failed to save activity:", e);
+      // keep data for retry instead of blowing it away
+    }
+  };
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  // Duration (seconds) - exclude paused time
+  const durationSec = useMemo(() => {
+    if (!startTime) return 0;
+    const elapsed = Date.now() - startTime - pausedDurationRef.current;
+    return Math.max(0, Math.floor(elapsed / 1000));
+  }, [startTime, isPaused, isTracking, path.length]);
+
+  // Avg speed recompute whenever distance or duration changes
+  useEffect(() => {
+    if (distance > 0 && durationSec > 0) {
+      const kmsPerHour = distance / (durationSec / 3600);
+      setAvgSpeed(Number(kmsPerHour.toFixed(2)));
+    } else {
+      setAvgSpeed(0);
+    }
+  }, [distance, durationSec]);
+
+  return (
+    <Shell>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          <Card title={isTracking ? (isPaused ? "Paused" : "Live Ride") : "Ready to Ride"}>
+            <div style={{ height: 420 }}>
+              <LeafletMapView path={path} base={base} />
+            </div>
+            <motion.div layout className="mt-4 grid grid-cols-3 gap-4">
+              <motion.div layout>
+                <div className="text-xs text-[#8b9db2]">Distance</div>
+                <div className="text-3xl font-semibold">{distance.toFixed(2)} km</div>
+              </motion.div>
+              <motion.div layout>
+                <div className="text-xs text-[#8b9db2]">Avg Speed</div>
+                <div className="text-3xl font-semibold">{avgSpeed.toFixed(1)} km/h</div>
+              </motion.div>
+              <motion.div layout>
+                <div className="text-xs text-[#8b9db2]">Duration</div>
+                <div className="text-3xl font-semibold">{Math.floor(durationSec/60)}m {durationSec%60}s</div>
+              </motion.div>
+            </motion.div>
+            <div className="mt-4 flex gap-3">
+              {!isTracking && <Button onClick={startTracking}>Start</Button>}
+              {isTracking && !isPaused && <Button onClick={pauseTracking}>Pause</Button>}
+              {isTracking && isPaused && <Button onClick={resumeTracking}>Resume</Button>}
+              {isTracking && <Button variant="destructive" onClick={stopTracking}>Stop &amp; Save</Button>}
+            </div>
+          </Card>
+        </div>
+        <div className="space-y-4">
+          <Card title="Ride Tips">
+            <ul className="list-disc list-inside text-[#cbd5e1]">
+              <li>Keep cadence steady for better efficiency</li>
+              <li>Watch battery levels on climbs</li>
+            </ul>
+          </Card>
+          <Card title="Achievements">
+            <div className="flex gap-2">
+              <span className="px-2 py-1 bg-[#0e1116] border border-[#1b2430] rounded">Rookie Rider</span>
+              <span className="px-2 py-1 bg-[#0e1116] border border-[#1b2430] rounded">5 km</span>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </Shell>
+  );
+};
+
 // ---------------------------
 // Activities List & Detail
 // ---------------------------
@@ -560,7 +735,12 @@ const ActivityDetail = () => {
     load();
   }, [id]);
 
-  useEffect(() => { if (!act?.path?.length) return; const timer = setInterval(() => setIdx((i) => Math.min(i + 1, act.path.length - 1)), 60); return () => clearInterval(timer); }, [act]);
+  useEffect(() => {
+    if (!act?.path?.length) return;
+    const timer = setInterval(() => setIdx((i) => Math.min(i + 1, act.path.length - 1)), 60);
+    return () => clearInterval(timer);
+  }, [act]);
+
   if (!act) return <Shell><Skeleton className="h-40"/></Shell>;
 
   const width = 800; const height = 400; const pad = 20;
@@ -615,8 +795,11 @@ const ActivityDetail = () => {
 };
 
 // ---------------------------
-// Profile (with gamification and linked bikes stub)
+// Profile, Settings, Signup, Home, Shop and other pages remain unchanged
+//   (I left these largely intact from your original code; only small fixes
+//   were made earlier where necessary)
 // ---------------------------
+
 const api = axios.create({ baseURL: `${API}` });
 
 const Profile = () => {
@@ -722,7 +905,7 @@ const Profile = () => {
 };
 
 // ---------------------------
-// Settings (with theme govv option)
+// Settings, Signup, Home, Shop, etc.
 // ---------------------------
 const Settings = () => {
   const [loading, setLoading] = useState(true);
@@ -803,9 +986,6 @@ const Settings = () => {
   );
 };
 
-// ---------------------------
-// Signup (OTP placeholder)
-// ---------------------------
 const Signup = () => {
   const [email, setEmail] = useState("");
   const [step, setStep] = useState("start");
@@ -855,9 +1035,6 @@ const Signup = () => {
   );
 };
 
-// ---------------------------
-// Home with Cycle Info and Shop link
-// ---------------------------
 const CycleCard = () => {
   const [battery, setBattery] = useState(76);
   const [locked, setLocked] = useState(true);
@@ -907,9 +1084,6 @@ const Home = () => (
   </Shell>
 );
 
-// ---------------------------
-// Shop Page (mock products)
-// ---------------------------
 const PRODUCTS = [
   { id: 'helmet1', name: 'Aero Helmet', price: 59.99, img: IMG_HELMET },
   { id: 'lights1', name: 'LED Light Set', price: 29.99, img: IMG_LIGHTS },
@@ -939,9 +1113,6 @@ const Shop = () => {
   );
 };
 
-// ---------------------------
-// Stub Pages for menu
-// ---------------------------
 const Warranty = () => (
   <Shell>
     <h1 className="text-2xl font-semibold mb-4">Warranty</h1>
@@ -970,9 +1141,6 @@ const Admin = () => (
   </Shell>
 );
 
-// ---------------------------
-// Activities preview (home)
-// ---------------------------
 const ActivitiesPreview = () => {
   const [items, setItems] = useState([]);
   useEffect(() => { (async () => { try { const r = await axios.get(`${API}/activities?limit=5`); setItems(r.data?.data?.items || []);} catch(e){} })(); }, []);
@@ -989,18 +1157,12 @@ const ActivitiesPreview = () => {
   );
 };
 
-// ---------------------------
-// Route transition wrapper
-// ---------------------------
 const FadePage = ({ children }) => (
   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
     {children}
   </motion.div>
 );
 
-// ---------------------------
-// Routes Component
-// ---------------------------
 const AppRoutes = () => {
   const location = useLocation();
   return (
@@ -1030,7 +1192,9 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <div className="App">
-            <AppRoutes />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
           </div>
         </CartProvider>
       </AuthProvider>
