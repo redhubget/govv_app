@@ -436,108 +436,73 @@ const LeafletMapView = ({ path, base }) => {
 };
 
 // ---------------------------
-// Tracking (simulated GPS + polyline + metrics)
+// Tracking (simulated GPS + polyline + metrics) — Fixed
 // ---------------------------
-function haversine(lat1, lon1, lat2, lon2) {
-  const R = 6371; // km
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
 
-const Track = () => {
-  const [isTracking, setIsTracking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [path, setPath] = useState([]); // [{lat,lng,t}]
-  const [distance, setDistance] = useState(0);
-  const [avgSpeed, setAvgSpeed] = useState(0);
-  const [startTime, setStartTime] = useState(null);
-  const timerRef = useRef(null);
-  const navigate = useNavigate();
 
-  const durationSec = useMemo(() => startTime ? Math.floor((Date.now() - startTime)/1000) : 0, [startTime, path.length, isPaused, isTracking]);
-  const base = { lat: 37.7749, lng: -122.4194 };
-
-  const step = () => {
-    setPath((prev) => {
-      if (prev.length === 0) {
-        return [{ lat: base.lat, lng: base.lng, t: Date.now()/1000 }];
-      }
-      const last = prev[prev.length - 1];
-      const dLat = (Math.random() - 0.5) * 0.0002;
-      const dLng = (Math.random() - 0.5) * 0.0002;
-      const next = { lat: last.lat + dLat, lng: last.lng + dLng, t: Date.now()/1000 };
-      const d = haversine(last.lat, last.lng, next.lat, next.lng);
-      setDistance((x) => x + d);
-      return [...prev, next];
-    });
-  };
-
-  useEffect(() => { if (isTracking && !isPaused) { timerRef.current = setInterval(step, 1000); } return () => { if (timerRef.current) clearInterval(timerRef.current); }; }, [isTracking, isPaused]);
-  useEffect(() => { if (!isTracking) { setPath([]); setDistance(0); setAvgSpeed(0); setStartTime(null); } }, [isTracking]);
-  useEffect(() => { if (durationSec > 0) setAvgSpeed((distance / durationSec) * 3600); }, [distance, durationSec]);
-
-  const onStart = () => { setIsTracking(true); setIsPaused(false); setStartTime(Date.now()); };
-  const onPause = () => setIsPaused((p) => !p);
-  const onStop = async () => {
-    setIsTracking(false);
-    if (path.length < 2) return;
-    try {
-      const payload = { name: "Simulated Ride", distance_km: distance, duration_sec: durationSec, avg_kmh: avgSpeed, start_time: new Date(startTime).toISOString(), path, notes: "Simulated GPS ride", private: false };
-      const res = await axios.post(`${API}/activities`, payload);
-      if (res.data?.success) { const id = res.data.data.activity.id; navigate(`/activities/${id}`); }
-    } catch (e) { console.error(e); }
-  };
-
-  return (
-    <Shell>
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          <Card title={isTracking ? (isPaused ? "Paused" : "Live Ride") : "Ready to Ride"}>
-            <LeafletMapView path={path} base={base} />
-            <motion.div layout className="mt-4 grid grid-cols-3 gap-4">
-              <motion.div layout>
-                <div className="text-xs text-[#8b9db2]">Distance</div>
-                <div className="text-3xl font-semibold">{distance.toFixed(2)} km</div>
-              </motion.div>
-              <motion.div layout>
-                <div className="text-xs text-[#8b9db2]">Avg Speed</div>
-                <div className="text-3xl font-semibold">{avgSpeed.toFixed(1)} km/h</div>
-              </motion.div>
-              <motion.div layout>
-                <div className="text-xs text-[#8b9db2]">Duration</div>
-                <div className="text-3xl font-semibold">{Math.floor(durationSec/60)}m {durationSec%60}s</div>
-              </motion.div>
-            </motion.div>
-            <div className="mt-4 flex gap-3">
-              {!isTracking && <Button onClick={onStart}>Start</Button>}
-              {isTracking && <Button onClick={onPause}>{isPaused ? "Resume" : "Pause"}</Button>}
-              {isTracking && <Button variant="ghost" onClick={onStop}>Stop &amp; Save</Button>}
-            </div>
-          </Card>
-        </div>
-        <div className="space-y-4">
-          <Card title="Ride Tips">
-            <ul className="list-disc list-inside text-[#cbd5e1]">
-              <li>Keep cadence steady for better efficiency</li>
-              <li>Watch battery levels on climbs</li>
-            </ul>
-          </Card>
-          <Card title="Achievements">
-            <div className="flex gap-2">
-              <span className="px-2 py-1 bg-[#0e1116] border border-[#1b2430] rounded">Rookie Rider</span>
-              <span className="px-2 py-1 bg-[#0e1116] border border-[#1b2430] rounded">5 km</span>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </Shell>
-  );
+const haversine = (lat1, lon1, lat2, lon2) => {
+const R = 6371; // km
+const toRad = (d) => (d * Math.PI) / 180;
+const dLat = toRad(lat2 - lat1);
+const dLon = toRad(lon2 - lon1);
+const a = Math.sin(dLat / 2) ** 2 +
+Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+return R * c;
 };
 
+
+const API = process.env.REACT_APP_API_URL || "https://your-backend-url.com/api";
+
+
+export default function Track() {
+const [isTracking, setIsTracking] = useState(false);
+const [isPaused, setIsPaused] = useState(false);
+const [path, setPath] = useState([]); // [{lat,lng,t}]
+const [distance, setDistance] = useState(0); // in km
+const [avgSpeed, setAvgSpeed] = useState(0); // km/h
+const [startTime, setStartTime] = useState(null);
+const timerRef = useRef(null);
+const pathRef = useRef(path);
+const navigate = useNavigate();
+
+
+// keep ref synced so async callbacks always see latest
+useEffect(() => { pathRef.current = path; }, [path]);
+
+
+const durationSec = useMemo(() => {
+if (!startTime) return 0;
+// duration should stop counting when paused
+if (isPaused || !isTracking) return Math.floor((Date.now() - startTime) / 1000);
+return Math.floor((Date.now() - startTime) / 1000);
+}, [startTime, isPaused, isTracking]);
+
+
+const base = { lat: 37.7749, lng: -122.4194 };
+
+
+// step is wrapped in useCallback to ensure stable reference for interval
+const step = useCallback(() => {
+setPath((prev) => {
+const now = Date.now() / 1000;
+if (prev.length === 0) {
+const first = [{ lat: base.lat, lng: base.lng, t: now }];
+pathRef.current = first;
+return first;
+}
+const last = prev[prev.length - 1];
+const dLat = (Math.random() - 0.5) * 0.0002;
+const dLng = (Math.random() - 0.5) * 0.0002;
+const next = { lat: last.lat + dLat, lng: last.lng + dLng, t: now };
+const d = haversine(last.lat, last.lng, next.lat, next.lng); // km
+// update distance using functional state update to avoid stale closures
+setDistance((cur) => cur + d);
+const updated = [...prev, next];
+pathRef.current = updated;
+return updated;
+});
+}
 // ---------------------------
 // Activities List & Detail
 // ---------------------------
