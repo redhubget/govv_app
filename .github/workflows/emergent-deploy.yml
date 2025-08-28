@@ -1,0 +1,22 @@
+name: Force Emergent AI Build
+
+on:
+  push:
+    branches:
+      - main  # or 'master' depending on your default branch
+
+jobs:
+  trigger-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Notify Emergent AI to Build
+        run: |
+          echo "Triggering Emergent AI build..."
+          curl -X POST \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ secrets.EMERGENT_API_KEY }}" \
+          -d '{"event":"build","branch":"main"}' \
+          https://api.emergent.ai/webhook/build
