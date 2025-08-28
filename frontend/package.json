@@ -57,12 +57,13 @@
     "leaflet": "^1.9.4",
     "react-leaflet": "^4.2.1"
   },
-  "scripts": {
-    "start": "HOST=0.0.0.0 PORT=3000 craco start",
-    "build": "craco build",
-    "test": "craco test",
-    "lint": "eslint src --fix"
-  },
+"scripts": {
+  "start": "HOST=0.0.0.0 PORT=2222 craco start",
+  "build": "craco build",
+  "test": "craco test",
+  "lint": "eslint src --fix"
+},
+
   "browserslist": {
     "production": [
       ">0.2%",
