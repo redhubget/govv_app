@@ -405,35 +405,18 @@ const Dashboard = () => {
   );
 };
 
-// ---------------------------
 // Leaflet Map for Tracking (react-leaflet implementation)
-// ---------------------------
-
-// FitPath: Auto-zoom the map to fit the path
-const FitPath = ({ path }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (!path || path.length === 0) return;
-    const bounds = L.latLngBounds(path.map(p => [p.lat, p.lng]));
-    map.fitBounds(bounds, { padding: [20, 20] });
-  }, [path, map]);
-  return null;
-};
-
-// Map view that uses react-leaflet's MapContainer
 const LeafletMapView = ({ path = [], base }) => {
-  // center on the first point or base
   const center = path.length ? [path[0].lat, path[0].lng] : [base.lat, base.lng];
 
-  return (
-   <MapContainer
-  key={isTracking ? "tracking-map" : "idle-map"} // <-- Add this line
-  center={center}
-  zoom={15}
-  className="w-full h-[360px] rounded-xl border border-[#1b2430]"
-  scrollWheelZoom={true}
-  zoomControl={false}
-      // Do not provide a changing key or id here — keep instance managed by react-leaflet
+  // Use useMemo so MapContainer is only re-created if base changes significantly
+  const mapContainer = useMemo(() => (
+    <MapContainer
+      center={center}
+      zoom={15}
+      className="w-full h-[360px] rounded-xl border border-[#1b2430]"
+      scrollWheelZoom={true}
+      zoomControl={false}
     >
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
@@ -443,13 +426,16 @@ const LeafletMapView = ({ path = [], base }) => {
         <>
           <Polyline positions={path.map(p => [p.lat, p.lng])} color="#22c55e" weight={3} />
           <Marker position={[path[0].lat, path[0].lng]} />
-          <Marker position={[path[path.length-1].lat, path[path.length-1].lng]} />
+          <Marker position={[path[path.length - 1].lat, path[path.length - 1].lng]} />
           <FitPath path={path} />
         </>
       )}
     </MapContainer>
-  );
+  ), [base.lat, base.lng, path]);
+
+  return mapContainer;
 };
+
 
 // ---------------------------
 // Haversine formula, tracking component & helpers
