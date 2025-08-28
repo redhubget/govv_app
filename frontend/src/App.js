@@ -522,6 +522,10 @@ const Track = () => {
     setStartTime(Date.now());
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     timerRef.current = setInterval(step, 1000);
+    // Optional: Clean up any existing map container if leftover
+  const existingMap = document.querySelector('.leaflet-container');
+  if (existingMap && existingMap._leaflet_id) {
+    existingMap._leaflet_id = null;
   };
 
   // Pause tracking: stop interval and track pause start time
