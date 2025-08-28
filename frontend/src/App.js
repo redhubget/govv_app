@@ -426,12 +426,13 @@ const LeafletMapView = ({ path = [], base }) => {
   const center = path.length ? [path[0].lat, path[0].lng] : [base.lat, base.lng];
 
   return (
-    <MapContainer
-      center={center}
-      zoom={15}
-      className="w-full h-[360px] rounded-xl border border-[#1b2430]"
-      scrollWheelZoom={true}
-      zoomControl={false}
+   <MapContainer
+  key={isTracking ? "tracking-map" : "idle-map"} // <-- Add this line
+  center={center}
+  zoom={15}
+  className="w-full h-[360px] rounded-xl border border-[#1b2430]"
+  scrollWheelZoom={true}
+  zoomControl={false}
       // Do not provide a changing key or id here — keep instance managed by react-leaflet
     >
       <TileLayer
